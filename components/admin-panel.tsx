@@ -1,0 +1,610 @@
+"use client"
+
+/**
+ * Vercel: задайте `NEXT_PUBLIC_ADMIN_PASSWORD` в Environment Variables и
+ * выполните redeploy. Без переменной вход будет использовать "slikemercedes".
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  Activity,
+  ArrowLeft,
+  Ban,
+  LogOut,
+  Map as MapIcon,
+  Pencil,
+  RefreshCw,
+  Shield,
+  Trash2,
+} from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { APP_CITIES, DEFAULT_APP_CITY, type AppCity, isAppCity } from "@/lib/cities"
+import { cn } from "@/lib/utils"
+import { isPersistentRideType, isRideWithinActiveWindow, RIDE_ACTIVE_MS } from "@/lib/rides"
+import { supabase } from "@/lib/supabase-client"
+
+const SESSION_AUTH_KEY = "poputi_admin_authorized"
+
+export interface RideRow {
+  id: number
+  lat: number | null
+  lng: number | null
+  price: number | null
+  type: string | null
+  created_at: string
+  from_location?: string | null
+  to_location?: string | null
+  name?: string | null
+  avatar?: string | null
+  vk_id?: string | null
+  city?: string | null
+}
+
+function startOfTodayLocal(): Date {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+export type AdminPanelVariant = "page" | "embedded"
+
+export function AdminPanel({
+  variant = "page",
+  initialAdminCity = DEFAULT_APP_CITY,
+  onBackToMap,
+  onRidesChanged,
+}: {
+  variant?: AdminPanelVariant
+  /** Город по умолчанию в админке (например, совпадает с выбранным на карте). */
+  initialAdminCity?: AppCity
+  /** VK Mini App: вернуться к карте без смены URL */
+  onBackToMap?: () => void
+  /** Вызвать после изменений в `rides`, чтобы обновить карту в родителе */
+  onRidesChanged?: () => void
+}) {
+  const embedded = variant === "embedded"
+  const [mounted, setMounted] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [password, setPassword] = useState("")
+  const [loginError, setLoginError] = useState<string | null>(null)
+
+  const [adminCity, setAdminCity] = useState<AppCity>(initialAdminCity)
+  const [rides, setRides] = useState<RideRow[]>([])
+  const [bannedUsers, setBannedUsers] = useState<{ vk_id: string; display_name?: string; reason?: string }[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingBanList, setLoadingBanList] = useState(false)
+
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [clearingOld, setClearingOld] = useState(false)
+  const [clearingIntercity, setClearingIntercity] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingRide, setEditingRide] = useState<RideRow | null>(null)
+  const [editFrom, setEditFrom] = useState("")
+  const [editTo, setEditTo] = useState("")
+  const [editPrice, setEditPrice] = useState("")
+  const [editType, setEditType] = useState("")
+  const [editCity, setEditCity] = useState<AppCity>(DEFAULT_APP_CITY)
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  const [banOpen, setBanOpen] = useState(false)
+  const [banVkId, setBanVkId] = useState("")
+  const [banName, setBanName] = useState("")
+  const [banReason, setBanReason] = useState("")
+  const [savingBan, setSavingBan] = useState(false)
+
+  const adminPassword =
+    typeof process !== "undefined" && process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      ? process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      : "slikemercedes"
+
+  const notifyRidesChanged = useCallback(() => {
+    onRidesChanged?.()
+  }, [onRidesChanged])
+
+  useEffect(() => {
+    setMounted(true)
+    if (typeof window !== "undefined" && sessionStorage.getItem(SESSION_AUTH_KEY) === "1") {
+      setIsAuthorized(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    setAdminCity(initialAdminCity)
+  }, [initialAdminCity])
+
+  const fetchRides = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("city", adminCity)
+      .order("created_at", { ascending: false })
+    setLoading(false)
+    if (!error) setRides((data as RideRow[]) ?? [])
+  }, [adminCity])
+
+  const fetchBanned = useCallback(async () => {
+    setLoadingBanList(true)
+    const { data, error } = await supabase.from("banned_users").select("*").order("created_at", { ascending: false })
+    setLoadingBanList(false)
+    if (!error) setBannedUsers((data as typeof bannedUsers) ?? [])
+  }, [])
+
+  useEffect(() => {
+    if (!mounted || !isAuthorized) return
+    void fetchRides()
+    void fetchBanned()
+  }, [mounted, isAuthorized, fetchRides, fetchBanned])
+
+  const activeRidesCount = useMemo(
+    () => rides.filter((r) => isRideWithinActiveWindow(r.created_at, r.type)).length,
+    [rides]
+  )
+  const registeredUsersCount = useMemo(() => {
+    const ids = new Set<string>()
+    for (const r of rides) if (r.vk_id?.trim()) ids.add(r.vk_id.trim())
+    return ids.size
+  }, [rides])
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError(null)
+    if (password === adminPassword) {
+      sessionStorage.setItem(SESSION_AUTH_KEY, "1")
+      setIsAuthorized(true)
+    } else {
+      setLoginError("Неверный пароль.")
+    }
+  }
+
+  const handleLogout = () => {
+    sessionStorage.removeItem(SESSION_AUTH_KEY)
+    setIsAuthorized(false)
+    setRides([])
+  }
+
+  const handleDeleteOne = async (id: number) => {
+    setDeletingId(id)
+    const { error } = await supabase.from("rides").delete().eq("id", id)
+    setDeletingId(null)
+    if (!error) {
+      setRides((prev) => prev.filter((r) => r.id !== id))
+      notifyRidesChanged()
+    }
+  }
+
+  const handleClearOldRides = async () => {
+    if (!window.confirm("Удалить все заявки за прошлые дни? (постоянные точки Static / AdminPoint не удаляются)")) return
+    setClearingOld(true)
+    const boundary = startOfTodayLocal().toISOString()
+    const { error } = await supabase
+      .from("rides")
+      .delete()
+      .eq("city", adminCity)
+      .lt("created_at", boundary)
+      .not("type", "eq", "Static")
+      .not("type", "eq", "AdminPoint")
+    setClearingOld(false)
+    if (!error) {
+      void fetchRides()
+      notifyRidesChanged()
+    }
+  }
+
+  const handleClearExpiredIntercity = async () => {
+    if (!window.confirm("Удалить старый межгород (старше 3 часов)? Постоянные точки не затрагиваются.")) return
+    setClearingIntercity(true)
+    const boundary = new Date(Date.now() - RIDE_ACTIVE_MS).toISOString()
+    const { error } = await supabase
+      .from("rides")
+      .delete()
+      .eq("city", adminCity)
+      .not("from_location", "is", null)
+      .not("to_location", "is", null)
+      .lt("created_at", boundary)
+      .not("type", "eq", "Static")
+      .not("type", "eq", "AdminPoint")
+    setClearingIntercity(false)
+    if (!error) {
+      void fetchRides()
+      notifyRidesChanged()
+    }
+  }
+
+  const openEdit = (ride: RideRow) => {
+    setEditingRide(ride)
+    setEditFrom(ride.from_location || "")
+    setEditTo(ride.to_location || "")
+    setEditPrice(ride.price ? ride.price.toString() : "")
+    setEditType(ride.type || "Passenger")
+    const c = ride.city?.trim()
+    setEditCity(c && isAppCity(c) ? c : adminCity)
+    setEditOpen(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editingRide) return
+    setSavingEdit(true)
+    const { error } = await supabase
+      .from("rides")
+      .update({
+        from_location: editFrom,
+        to_location: editTo,
+        price: editPrice ? Number(editPrice) : null,
+        type: editType,
+        city: editCity,
+      })
+      .eq("id", editingRide.id)
+    setSavingEdit(false)
+    if (!error) {
+      setEditOpen(false)
+      void fetchRides()
+      notifyRidesChanged()
+    }
+  }
+
+  const openBan = (ride: RideRow) => {
+    setBanVkId(ride.vk_id || "")
+    setBanName(ride.name || "")
+    setBanReason("")
+    setBanOpen(true)
+  }
+
+  const confirmBan = async () => {
+    if (!banVkId.trim()) return
+    setSavingBan(true)
+    const { error } = await supabase.from("banned_users").insert({
+      vk_id: banVkId,
+      display_name: banName,
+      reason: banReason,
+    })
+    setSavingBan(false)
+    if (!error || error.code === "23505") {
+      setBanOpen(false)
+      void fetchBanned()
+    }
+  }
+
+  const unban = async (vk_id: string) => {
+    const { error } = await supabase.from("banned_users").delete().eq("vk_id", vk_id)
+    if (!error) void fetchBanned()
+  }
+
+  const shellClass = embedded
+    ? "h-full min-h-0 flex flex-col bg-slate-950 text-slate-100 overflow-hidden"
+    : "min-h-screen bg-slate-950 text-slate-100"
+
+  const loginShellClass = embedded
+    ? "h-full min-h-0 flex flex-col items-center justify-center px-4 bg-slate-950 text-slate-100"
+    : "min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-4"
+
+  if (!mounted) {
+    return (
+      <div className={embedded ? "h-full flex items-center justify-center text-slate-500 bg-slate-950" : "min-h-screen bg-slate-950 flex items-center justify-center text-slate-500"}>
+        Загрузка…
+      </div>
+    )
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className={loginShellClass}>
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
+          <div className="mb-6 flex items-center gap-3">
+            <Shield className="h-10 w-10 text-amber-500" />
+            <div>
+              <h1 className="text-xl font-bold">Попути — Админ</h1>
+              <p className="text-sm text-slate-500">Авторизация</p>
+            </div>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-slate-950 border-slate-800"
+              placeholder="Пароль"
+            />
+            {loginError && <p className="text-sm text-red-400">{loginError}</p>}
+            <Button type="submit" className="w-full bg-amber-500 text-slate-950 hover:bg-amber-400 font-bold">
+              Войти
+            </Button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={shellClass}>
+      <header className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-3 sm:px-6">
+        <div className={embedded ? "flex items-center justify-between gap-2" : "mx-auto flex max-w-6xl items-center justify-between"}>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            {embedded && onBackToMap && (
+              <Button type="button" variant="outline" size="sm" onClick={onBackToMap} className="shrink-0 border-slate-700 bg-slate-900 text-slate-100">
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                <MapIcon className="mr-1 hidden h-4 w-4 sm:inline" />
+                <span className="hidden sm:inline">Назад на карту</span>
+                <span className="sm:hidden">Карта</span>
+              </Button>
+            )}
+            <Shield className="h-6 w-6 shrink-0 text-amber-400" />
+            <h1 className="truncate text-lg font-bold">Центр управления</h1>
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="shrink-0 text-slate-400">
+            <LogOut className="mr-2 h-4 w-4" /> Выход
+          </Button>
+        </div>
+      </header>
+
+      <main className={embedded ? "min-h-0 flex-1 overflow-y-auto p-4 space-y-6" : "mx-auto max-w-6xl p-4 sm:p-6 space-y-6"}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-400">
+                <Activity className="h-4 w-4" /> Активные поездки
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-emerald-400">{activeRidesCount}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-400">
+                <Shield className="h-4 w-4" /> Пользователи
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-400">{registeredUsersCount}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+          <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Заявки города</p>
+          <div className="flex w-full gap-0 rounded-full bg-slate-950 p-1" role="tablist" aria-label="Город в админке">
+            {APP_CITIES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="tab"
+                aria-selected={adminCity === c}
+                onClick={() => setAdminCity(c)}
+                className={cn(
+                  "flex-1 rounded-full py-2.5 px-3 text-center text-sm font-semibold transition-all",
+                  adminCity === c
+                    ? "bg-amber-500 text-slate-950 shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Tabs defaultValue="rides">
+          <TabsList className="bg-slate-900 border-slate-800">
+            <TabsTrigger value="rides">Список заявок</TabsTrigger>
+            <TabsTrigger value="bans">Черный список</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="rides" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <Button onClick={() => void fetchRides()} disabled={loading} variant="outline" size="sm">
+                <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Обновить
+              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" onClick={handleClearOldRides} disabled={clearingOld}>
+                  <Trash2 className="mr-2 h-4 w-4 text-orange-400" /> Старые (Вчера)
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleClearExpiredIntercity} disabled={clearingIntercity}>
+                  <Trash2 className="mr-2 h-4 w-4 text-red-400" /> Межгород (&gt; 3ч)
+                </Button>
+              </div>
+            </div>
+
+            <Card className="overflow-hidden border-slate-800 bg-slate-900">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-800">
+                    <TableHead>ID</TableHead>
+                    <TableHead>Тип</TableHead>
+                    <TableHead>Город</TableHead>
+                    <TableHead>Маршрут</TableHead>
+                    <TableHead>Цена</TableHead>
+                    <TableHead className="text-right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rides.map((ride) => (
+                    <TableRow key={ride.id} className="border-slate-800 hover:bg-slate-800/50">
+                      <TableCell className="font-mono text-xs text-slate-500">{ride.id}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">
+                          {ride.type}
+                          {isPersistentRideType(ride.type) ? " · ∞" : ""}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-300">{ride.city?.trim() || "—"}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{(ride.from_location || "—") + " → " + (ride.to_location || "—")}</div>
+                        <div className="text-xs text-slate-500">{ride.name}</div>
+                      </TableCell>
+                      <TableCell className="text-emerald-400">{ride.price ? `${ride.price}₽` : "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(ride)}>
+                            <Pencil className="h-4 w-4 text-blue-400" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openBan(ride)} disabled={!ride.vk_id}>
+                            <Ban className="h-4 w-4 text-amber-500" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteOne(ride.id)} disabled={deletingId === ride.id}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="bans" className="mt-4">
+            <Card className="overflow-hidden border-slate-800 bg-slate-900">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-800">
+                    <TableHead>VK ID</TableHead>
+                    <TableHead>Имя</TableHead>
+                    <TableHead>Причина</TableHead>
+                    <TableHead className="text-right">Действие</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bannedUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-8 text-center text-slate-500">
+                        Список пуст
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    bannedUsers.map((b) => (
+                      <TableRow key={b.vk_id} className="border-slate-800">
+                        <TableCell className="font-mono text-xs">{b.vk_id}</TableCell>
+                        <TableCell>{b.display_name}</TableCell>
+                        <TableCell className="text-slate-500">{b.reason || "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" onClick={() => unban(b.vk_id)}>
+                            Разбанить
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Редактирование</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Откуда</Label>
+              <Input value={editFrom} onChange={(e) => setEditFrom(e.target.value)} className="border-slate-800 bg-slate-900" />
+            </div>
+            <div className="space-y-2">
+              <Label>Куда</Label>
+              <Input value={editTo} onChange={(e) => setEditTo(e.target.value)} className="border-slate-800 bg-slate-900" />
+            </div>
+            <div className="space-y-2">
+              <Label>Цена</Label>
+              <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="border-slate-800 bg-slate-900" />
+            </div>
+            <div className="space-y-2">
+              <Label>Тип</Label>
+              <Select value={editType} onValueChange={setEditType}>
+                <SelectTrigger className="border-slate-800 bg-slate-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Passenger">Пассажир</SelectItem>
+                  <SelectItem value="Driver">Водитель</SelectItem>
+                  <SelectItem value="Static">Статичная точка</SelectItem>
+                  <SelectItem value="AdminPoint">Точка админа (legacy)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Город</Label>
+              <Select value={editCity} onValueChange={(v) => setEditCity(v as AppCity)}>
+                <SelectTrigger className="border-slate-800 bg-slate-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {APP_CITIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={banOpen} onOpenChange={setBanOpen}>
+        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Блокировка</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>VK ID</Label>
+              <Input value={banVkId} readOnly className="border-slate-800 bg-slate-900 opacity-50" />
+            </div>
+            <div className="space-y-2">
+              <Label>Причина</Label>
+              <Input value={banReason} onChange={(e) => setBanReason(e.target.value)} className="border-slate-800 bg-slate-900" placeholder="Нарушение правил..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBanOpen(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={confirmBan} disabled={savingBan}>
+              Забанить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
