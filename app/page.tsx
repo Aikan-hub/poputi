@@ -1482,12 +1482,49 @@ function AddRequestModal({
   const [seatCount, setSeatCount] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [citySuggestions, setCitySuggestions] = useState<{ text: string; lat: number; lng: number }[]>([])
+  const [cityCoordsOverride, setCityCoordsOverride] = useState<{ lat: number; lng: number } | null>(null)
+  useEffect(() => {
+    if (variant !== "city") return
+    const q = whereStanding.trim()
+    if (q.length < 3) {
+      setCitySuggestions([])
+      return
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const resp = await fetch(
+          `https://geocode-maps.yandex.ru/1.x/?apikey=77552578-1483-4cc6-8510-a0a7f7f340aa&format=json&geocode=${encodeURIComponent(
+            `${city}, ${q}`
+          )}`
+        )
+        const data = await resp.json()
+        const members = data.response?.GeoObjectCollection?.featureMember || []
+        const items = members.slice(0, 5).map((m: any) => {
+          const name = m.GeoObject?.name
+          const text = m.GeoObject?.metaDataProperty?.GeocoderMetaData?.text
+          const pos = m.GeoObject?.Point?.pos
+          if (!pos) return null
+          const [lngStr, latStr] = pos.split(" ")
+          return {
+            text: text || name || q,
+            lat: parseFloat(latStr),
+            lng: parseFloat(lngStr),
+          }
+        })
+        setCitySuggestions(items.filter(Boolean))
+      } catch {
+        setCitySuggestions([])
+      }
+    }, 400)
+    return () => clearTimeout(handle)
+  }, [variant, whereStanding, city])
 
   const handleSubmitCity = async () => {
     if (!whereStanding.trim() || !toCity.trim() || isSubmitting) return
     const [fallbackLat, fallbackLng] = APP_CITY_COORDS[city]
-    const lat = pinCoords?.lat ?? fallbackLat
-    const lng = pinCoords?.lng ?? fallbackLng
+    const lat = cityCoordsOverride?.lat ?? pinCoords?.lat ?? fallbackLat
+    const lng = cityCoordsOverride?.lng ?? pinCoords?.lng ?? fallbackLng
 
     setIsSubmitting(true)
     setSubmitError(null)
@@ -1662,9 +1699,31 @@ function AddRequestModal({
                 type="text"
                 placeholder="Где я стою (ориентир)"
                 value={whereStanding}
-                onChange={(e) => setWhereStanding(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setWhereStanding(v)
+                  setCityCoordsOverride(null)
+                }}
                 className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
               />
+              {citySuggestions.length > 0 && (
+                <div className="rounded-xl border border-[#E1E3E6] bg-white shadow-sm">
+                  {citySuggestions.map((sug, idx) => (
+                    <button
+                      type="button"
+                      key={`${sug.text}-${idx}`}
+                      onClick={() => {
+                        setWhereStanding(sug.text)
+                        setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
+                        setCitySuggestions([])
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm text-[#2C2D2E] hover:bg-[#F2F3F5]"
+                    >
+                      {sug.text}
+                    </button>
+                  ))}
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Куда еду по городу"
