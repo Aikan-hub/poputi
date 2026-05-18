@@ -27,10 +27,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, message: "Ожидается vkTag вида id123456" }, { status: 400 })
   }
 
+  const vkId = raw.toLowerCase()
+
+  const { data: existing } = await admin
+    .from("driver_payment_intents")
+    .select("invoice_id, status")
+    .eq("vk_id", vkId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+
+  if (existing?.[0]?.status === "paid") {
+    return NextResponse.json({ ok: false, message: "Доступ уже оплачен" }, { status: 409 })
+  }
+
   const invoiceId = randomUUID()
   const { error } = await admin.from("driver_payment_intents").insert({
     invoice_id: invoiceId,
-    vk_id: raw,
+    vk_id: vkId,
     layout_id: DRIVER_CLOUDTIPS_LAYOUT_ID,
     status: "pending",
   })

@@ -51,8 +51,12 @@ export default function RootLayout({
 })();`,
           }}
         />
-        <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-        <script dangerouslySetInnerHTML={{ __html: `eruda.init();` }} />
+        {process.env.NODE_ENV !== 'production' && (
+          <>
+            <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+            <script dangerouslySetInnerHTML={{ __html: `eruda.init();` }} />
+          </>
+        )}
       </head>
       <body className="font-sans antialiased">
         <Script
