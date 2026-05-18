@@ -17,11 +17,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, hasPaidAccess: false, message: "Некорректный vkTag" }, { status: 400 })
   }
 
-  const normalized = vkTag.toLowerCase().startsWith("id") ? vkTag : `id${vkTag}`
+  const normalized = vkTag.toLowerCase()
 
   const { data, error } = await admin
     .from("driver_payment_intents")
-    .select("invoice_id")
+    .select("id")
     .eq("vk_id", normalized)
     .eq("status", "paid")
     .limit(1)

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
   if (!secret) {
     console.error("CLOUDTIPS_WEBHOOK_SECRET is not set")
-    return cloudtipsAck()
+    return NextResponse.json({ code: 1, error: "server misconfigured" }, { status: 500 })
   }
 
   if (!verifyCloudtipsWebhookSignature(rawBody, hmacHeader, secret)) {
@@ -44,8 +44,11 @@ export async function POST(req: Request) {
   }
 
   const amount = Number.parseFloat(fields.amount || "")
-  if (Number.isFinite(amount) && amount > 0 && amount < DRIVER_ACCESS_AMOUNT - 5) {
-    // небольшой запас на комиссии/округление
+  if (!Number.isFinite(amount) || amount <= 0) {
+    console.warn("CloudTips webhook: invalid amount", fields.amount)
+    return cloudtipsAck()
+  }
+  if (amount < DRIVER_ACCESS_AMOUNT - 5) {
     console.warn("CloudTips webhook: amount below threshold", amount)
     return cloudtipsAck()
   }

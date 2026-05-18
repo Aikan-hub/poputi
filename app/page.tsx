@@ -64,6 +64,7 @@ export type ChatData = {
   threadId: string
   name: string
   avatar: string
+  avatarUrl?: string
   lastMessage: string
   time: string
   unread: number
@@ -73,6 +74,8 @@ export type ChatData = {
   telegram: string
   vkTag?: string
 }
+
+type PeerProfile = { avatar_url?: string; display_name?: string; total_rides?: number; average_rating?: number }
 
 const getAvatarLabel = (name: string, avatar?: string) => {
   if (avatar && !avatar.startsWith("http")) return avatar
@@ -97,20 +100,22 @@ function formatChatListTime(iso: string): string {
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
 }
 
-function threadRowToChatData(row: ChatThreadRow, myTag: string): ChatData {
+function threadRowToChatData(row: ChatThreadRow, myTag: string, peerProfiles?: Record<string, PeerProfile>): ChatData {
   const peerVk = row.vk_lower === myTag ? row.vk_higher : row.vk_lower
   const labels = row.peer_labels || {}
-  const displayName = labels[peerVk]?.trim() || `Пользователь ${peerVk.replace(/^id/i, "")}`
+  const prof = peerProfiles?.[peerVk]
+  const displayName = prof?.display_name?.trim() || labels[peerVk]?.trim() || `Пользователь ${peerVk.replace(/^id/i, "")}`
   return {
     id: row.id,
     threadId: row.id,
     name: displayName,
     avatar: getAvatarLabel(displayName),
+    avatarUrl: prof?.avatar_url || undefined,
     lastMessage: row.last_message || "Нет сообщений",
     time: formatChatListTime(row.last_message_at),
     unread: 0,
-    rating: 5,
-    trips: 0,
+    rating: prof?.average_rating ?? 5,
+    trips: prof?.total_rides ?? 0,
     vkId: peerVk,
     vkTag: peerVk,
     telegram: "",
@@ -359,7 +364,20 @@ export default function PoputiApp() {
     setChatsLoading(true)
     const tag = vkIdTagFromNumericId(vkUser.id)
     const rows = await fetchThreadsForUser(supabase, tag)
-    setChats(rows.map((row) => threadRowToChatData(row, tag)))
+
+    const peerTags = [...new Set(rows.map((r) => (r.vk_lower === tag ? r.vk_higher : r.vk_lower)))]
+    const peerProfiles: Record<string, PeerProfile> = {}
+    if (peerTags.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("vk_id, avatar_url, display_name, total_rides, average_rating")
+        .in("vk_id", peerTags)
+      for (const p of profs || []) {
+        peerProfiles[p.vk_id as string] = p as PeerProfile
+      }
+    }
+
+    setChats(rows.map((row) => threadRowToChatData(row, tag, peerProfiles)))
     setChatsLoading(false)
   }, [vkUser])
 
@@ -425,6 +443,17 @@ export default function PoputiApp() {
           last_name: user.last_name,
           photo_200: user.photo_200,
         })
+        const tag = vkIdTagFromNumericId(user.id)
+        const displayName = `${user.first_name} ${user.last_name}`.trim()
+        void supabase.from("profiles").upsert(
+          {
+            vk_id: tag,
+            avatar_url: user.photo_200 || null,
+            display_name: displayName || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "vk_id", ignoreDuplicates: false }
+        )
       })
       .catch((error) => {
         console.error("VKWebAppGetUserInfo failed", error)
@@ -462,7 +491,16 @@ export default function PoputiApp() {
         }
         await loadChats()
         const list = await fetchThreadsForUser(supabase, myTag)
-        const mapped = list.map((row) => threadRowToChatData(row, myTag))
+        const peerTags2 = [...new Set(list.map((r) => (r.vk_lower === myTag ? r.vk_higher : r.vk_lower)))]
+        const pp: Record<string, PeerProfile> = {}
+        if (peerTags2.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("vk_id, avatar_url, display_name, total_rides, average_rating")
+            .in("vk_id", peerTags2)
+          for (const p of profs || []) pp[p.vk_id as string] = p as PeerProfile
+        }
+        const mapped = list.map((row) => threadRowToChatData(row, myTag, pp))
         const found = mapped.find((c) => c.vkTag === peerVk || c.vkId === peerVk)
         if (found) setSelectedChat(found)
         setSelectedDriver(null)
@@ -635,7 +673,7 @@ export default function PoputiApp() {
 
   if (activeScreen === "admin") {
     return (
-      <div className="max-w-md mx-auto h-screen relative shadow-2xl overflow-hidden bg-[#EBEDF0] flex flex-col">
+      <div className="max-w-md mx-auto h-dvh relative shadow-2xl overflow-hidden bg-[#EBEDF0] flex flex-col">
         <AdminPanel
           variant="embedded"
           initialAdminCity={selectedCity}
@@ -650,7 +688,7 @@ export default function PoputiApp() {
   }
 
   return (
-    <div className="max-w-md mx-auto h-screen relative shadow-2xl overflow-hidden bg-[#EBEDF0] flex flex-col">
+    <div className="max-w-md mx-auto h-dvh relative shadow-2xl overflow-hidden bg-[#EBEDF0] flex flex-col">
       {!introCityDone ? (
         <CityIntroSplash
           isVkReady={isVkReady}
@@ -1135,7 +1173,7 @@ function CityMapView({
       {/* Add Request Modal — быстрый город */}
       {showAddRequest && (
         <AddRequestModal
-          variant={userRole === "Driver" ? "city" : "intercity"}
+          variant="city"
           pinCoords={addPinCoords}
           onClose={() => setShowAddRequest(false)}
           onRideAdded={onRideAdded}
@@ -1315,9 +1353,13 @@ function DriverBottomSheet({
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#D3D9DE]" />
 
         <div className="mb-4 flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#2787F5] text-xl font-bold text-white">
-            {driver.avatar}
-          </div>
+          {driver.driverPhotoUrl ? (
+            <img src={driver.driverPhotoUrl} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-[#2787F5]/20" />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#2787F5] text-xl font-bold text-white">
+              {driver.avatar}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-[#2C2D2E]">{driver.name}</h3>
@@ -2203,9 +2245,13 @@ function ChatsScreen({
                     onOpenProfile(chat)
                   }}
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-base font-semibold text-white">
-                    {chat.avatar}
-                  </div>
+                  {chat.avatarUrl ? (
+                    <img src={chat.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-[#2787F5]/20" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-base font-semibold text-white">
+                      {chat.avatar}
+                    </div>
+                  )}
                   {chat.unread > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E64646] text-xs font-medium text-white">
                       {chat.unread}
@@ -2252,6 +2298,7 @@ function ChatView({
   const [messages, setMessages] = useState<{ id: number; text: string; isMe: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const threadId = chat.threadId
 
@@ -2272,6 +2319,26 @@ function ChatView({
     void reloadMessages()
   }, [reloadMessages])
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`chat_${threadId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages", filter: `thread_id=eq.${threadId}` },
+        () => {
+          void reloadMessages()
+        }
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [threadId, reloadMessages])
+
   const handleSend = async () => {
     const t = message.trim()
     if (!t || sending) return
@@ -2291,9 +2358,13 @@ function ChatView({
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button type="button" onClick={onOpenProfile} className="flex flex-1 items-center gap-3 text-left">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2787F5] font-semibold text-white">
-            {chat.avatar}
-          </div>
+          {chat.avatarUrl ? (
+            <img src={chat.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-[#2787F5]/20" />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2787F5] font-semibold text-white">
+              {chat.avatar}
+            </div>
+          )}
           <div>
             <h2 className="font-semibold text-[#2C2D2E]">{chat.name}</h2>
             <p className="text-xs text-[#818C99]">Диалог в облаке</p>
@@ -2320,6 +2391,7 @@ function ChatView({
               </div>
             </div>
           ))}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className="border-t border-[#E1E3E6] bg-white p-3">
@@ -2362,9 +2434,13 @@ function PublicProfileModal({ profile, onClose }: { profile: ChatData; onClose: 
 
           {/* Profile Header */}
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-20 h-20 bg-[#2787F5] rounded-full flex items-center justify-center text-white font-bold text-2xl">
-              {profile.avatar}
-            </div>
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt="" className="w-20 h-20 rounded-full object-cover shadow-lg ring-2 ring-[#2787F5]/20" />
+            ) : (
+              <div className="w-20 h-20 bg-[#2787F5] rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                {profile.avatar}
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-bold text-[#2C2D2E]">{profile.name}</h2>
               <div className="flex items-center gap-1 mt-1">

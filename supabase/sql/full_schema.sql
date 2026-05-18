@@ -21,9 +21,10 @@ create table if not exists public.rides (
   name text,
   vk_id text,
   city text not null default 'Шумиха',
-  status text not null default 'open',
+  status text not null default 'searching',
   comment text,
   partner_vk_id text,
+  driver_id text,
   total_seats integer not null default 4,
   available_seats integer not null default 4,
   avatar text,
@@ -36,9 +37,10 @@ create table if not exists public.rides (
 
 comment on table public.rides is 'Точки на карте и межгородские поездки';
 comment on column public.rides.type is 'Driver | Passenger | City | Static | AdminPoint';
-comment on column public.rides.status is 'open | in_progress | completed | cancelled';
+comment on column public.rides.status is 'searching | accepted | in_transit | completed | cancelled';
 comment on column public.rides.city is 'Шумиха | Тюмень — фильтр в приложении';
 comment on column public.rides.partner_vk_id is 'Второй участник (id123…), для отзыва';
+comment on column public.rides.driver_id is 'vk_id (id123…) водителя';
 comment on column public.rides.seats is 'Legacy; при наличии подтягивается в total/available_seats';
 
 -- Догоняющие колонки, если таблица rides уже была создана раньше без части полей
@@ -52,9 +54,10 @@ alter table public.rides add column if not exists to_location text;
 alter table public.rides add column if not exists name text;
 alter table public.rides add column if not exists vk_id text;
 alter table public.rides add column if not exists city text;
-alter table public.rides add column if not exists status text not null default 'open';
+alter table public.rides add column if not exists status text not null default 'searching';
 alter table public.rides add column if not exists comment text;
 alter table public.rides add column if not exists partner_vk_id text;
+alter table public.rides add column if not exists driver_id text;
 alter table public.rides add column if not exists total_seats integer not null default 4;
 alter table public.rides add column if not exists available_seats integer not null default 4;
 alter table public.rides add column if not exists avatar text;
@@ -78,6 +81,11 @@ begin
   end if;
 end;
 $fix_city$;
+
+-- Normalize legacy status values
+update public.rides set status = 'searching' where status is null or trim(status) = '' or status = 'open';
+update public.rides set status = 'accepted' where status = 'in_progress';
+alter table public.rides alter column status set default 'searching';
 
 create index if not exists rides_city_created_idx on public.rides (city, created_at desc);
 create index if not exists rides_vk_id_idx on public.rides (vk_id) where vk_id is not null;
@@ -107,6 +115,8 @@ create table if not exists public.profiles (
   total_rides integer not null default 0,
   average_rating numeric(3, 2) not null default 5.00,
   no_show_count integer not null default 0,
+  avatar_url text,
+  display_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -114,8 +124,12 @@ create table if not exists public.profiles (
 create index if not exists profiles_updated_at_idx on public.profiles (updated_at desc);
 
 alter table public.profiles add column if not exists no_show_count integer not null default 0;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists display_name text;
 
 comment on table public.profiles is 'Кэш рейтинга/поездок для UI; average_rating синхронизируется из reviews в приложении';
+comment on column public.profiles.avatar_url is 'URL фото пользователя из VK (photo_200)';
+comment on column public.profiles.display_name is 'Имя Фамилия из VK';
 
 -- -----------------------------------------------------------------------------
 -- 3. reviews — отзывы после поездки
@@ -260,13 +274,14 @@ begin
     return jsonb_build_object('ok', false, 'err', 'already_taken');
   end if;
 
-  if nullif(trim(coalesce(v_status, '')), '') is not null and v_status <> 'open' then
+  if nullif(trim(coalesce(v_status, '')), '') is not null and v_status not in ('open', 'searching') then
     return jsonb_build_object('ok', false, 'err', 'not_open');
   end if;
 
   update public.rides
-  set status = 'in_progress',
-      partner_vk_id = p_driver_vk_id
+  set status = 'accepted',
+      partner_vk_id = p_driver_vk_id,
+      driver_id = p_driver_vk_id
   where id = p_ride_id;
 
   return jsonb_build_object('ok', true);
@@ -410,3 +425,11 @@ drop policy if exists banned_users_delete_anon on public.banned_users;
 create policy banned_users_delete_anon on public.banned_users for delete to anon, authenticated using (true);
 
 -- driver_payment_intents: только service_role (политик для anon нет — так и задумано)
+
+-- =============================================================================
+-- 9. Realtime — включить для таблиц, где нужны подписки
+-- =============================================================================
+-- Выполните в SQL Editor если Realtime не включён автоматически:
+-- alter publication supabase_realtime add table public.rides;
+-- alter publication supabase_realtime add table public.chat_messages;
+-- alter publication supabase_realtime add table public.chat_threads;
