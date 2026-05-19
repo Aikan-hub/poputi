@@ -58,6 +58,16 @@ import {
   Crown,
 } from "lucide-react"
 
+function cityBoundsKm(center: [number, number], radiusKm = 50): [[number, number], [number, number]] {
+  const [lat, lng] = center
+  const latDelta = radiusKm / 111 // ~111 km per degree latitude
+  const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1)
+  return [
+    [lat - latDelta, lng - lngDelta],
+    [lat + latDelta, lng + lngDelta],
+  ]
+}
+
 /** Чат из Supabase `chat_threads`; `id` === `threadId` (uuid). */
 export type ChatData = {
   id: string
@@ -350,7 +360,11 @@ export default function PoputiApp() {
   // Fetch rides from Supabase (только выбранный город)
   const fetchRides = useCallback(async () => {
     const { data, error } = await supabase.from("rides").select("*").eq("city", selectedCity)
-    if (data && !error) {
+    if (error) {
+      console.warn("fetchRides error", error)
+      return
+    }
+    if (data) {
       setRides(data)
     }
   }, [selectedCity])
@@ -939,6 +953,7 @@ function MapScreen({
       {mode === "city" ? (
         <CityMapView
           city={city}
+          mode={mode}
           isVkReady={isVkReady}
           vkUser={vkUser}
           selectedDriver={selectedDriver}
@@ -977,6 +992,7 @@ function MapScreen({
 
 function CityMapView({
   city,
+  mode,
   isVkReady,
   vkUser,
   selectedDriver,
@@ -1001,6 +1017,7 @@ function CityMapView({
   setSelectedDriver: (driver: DriverData | null) => void
   showAddRequest: boolean
   setShowAddRequest: (show: boolean) => void
+  mode: Mode
   onBooking: (person: {
     name: string
     avatar: string
@@ -1021,6 +1038,7 @@ function CityMapView({
   onRideDeleted: () => void
 }) {
   const cityCoords = APP_CITY_COORDS[city]
+  const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 50), [cityCoords])
   const [isYandexReady, setIsYandexReady] = useState(false)
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -1048,30 +1066,11 @@ function CityMapView({
     }
   }, [showAddRequest, city])
 
-  useEffect(() => {
-    let attempts = 0
-    const maxAttempts = 60
-    const interval = setInterval(() => {
-      if (typeof window !== "undefined" && "ymaps" in window) {
-        setIsYandexReady(true)
-        clearInterval(interval)
-        return
-      }
-
-      attempts += 1
-      if (attempts >= maxAttempts) {
-        clearInterval(interval)
-      }
-    }, 500)
-
-    return () => clearInterval(interval)
-  }, [])
-
   return (
     <div className="flex-1 relative overflow-hidden">
       {/* Yandex Map */}
-      {isVkReady && isYandexReady ? (
-        <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa" }}>
+      {isVkReady ? (
+        <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa" }} onLoad={() => setIsYandexReady(true)}>
           <YMap
             instanceRef={(inst) => {
               mapInstanceRef.current = (inst as { getCenter: () => number[] } | null) ?? null
@@ -1079,60 +1078,72 @@ function CityMapView({
             defaultState={{ center: cityCoords, zoom: 14 }}
             state={{ center: cityCoords, zoom: 14 }}
             className="w-full h-full"
-            options={{ suppressMapOpenBlock: true }}
+            options={{ suppressMapOpenBlock: true, restrictMapArea: cityBounds }}
           >
-            {rides
-              .filter((ride) => {
-                if (ride.lat == null || ride.lng == null) return false
-                if (!isRideWithinActiveWindow(ride.created_at, ride.type)) return false
-                return shouldDisplayRide(ride)
-              })
-              .map((ride) => {
-                const createdAt = new Date(ride.created_at).getTime()
-                const now = Date.now()
-                const elapsedMin = Math.floor((now - createdAt) / 60000)
-                const persistent = isPersistentRideType(ride.type)
-                const timer = persistent ? 180 : Math.max(0, 180 - elapsedMin)
+            <div className="absolute left-3 top-3 z-20 rounded-md bg-white/90 px-3 py-1 text-xs text-[#2C2D2E] shadow-sm">
+              Заявок: {rides.length}
+            </div>
+            {isYandexReady &&
+              rides
+                .map((ride) => {
+                  const lat = typeof ride.lat === "string" ? parseFloat(ride.lat) : ride.lat
+                  const lng = typeof ride.lng === "string" ? parseFloat(ride.lng) : ride.lng
+                  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+                  if (!isRideWithinActiveWindow(ride.created_at, ride.type)) return null
+                  if (!shouldDisplayRide(ride)) return null
 
-                const rideAsDriver: DriverData = {
-                  id: ride.id,
-                  name: ride.name || "Пользователь",
-                  avatar: getAvatarLabel(ride.name || "Пользователь", ride.avatar),
-                  coords: [ride.lat, ride.lng] as [number, number],
-                  price: ride.price || 0,
-                  timer,
-                  car: ride.car || "Авто",
-                  rating: ride.rating || 4.5,
-                  trips: ride.trips || 0,
-                  vkId: ride.vk_id || "",
-                  telegram: ride.telegram || "",
-                  supabaseId: ride.id,
-                  driverId: ride.driver_id ?? null,
-                  driverPhotoUrl: ride.avatar?.startsWith("http") ? ride.avatar : undefined,
-                  rideType: ride.type,
-                  rideStatus: (ride.status as RideStatus | null) ?? "searching",
-                  rideComment: ride.comment ?? null,
-                  fromLocation: ride.from_location,
-                  toLocation: ride.to_location,
-                  activeRide: ride,
-                }
+                  const createdAt = new Date(ride.created_at).getTime()
+                  const now = Date.now()
+                  const elapsedMin = Math.floor((now - createdAt) / 60000)
+                  const persistent = isPersistentRideType(ride.type)
+                  const timer = persistent ? 180 : Math.max(0, 180 - elapsedMin)
 
-                return (
-                  <DriverPlacemark
-                    key={`supabase-${ride.id}`}
-                    driver={rideAsDriver}
-                    isPersistent={persistent}
-                    createdAt={ride.created_at}
-                    rideType={ride.type}
-                    onClick={() => setSelectedDriver(rideAsDriver)}
-                  />
-                )
-              })}
+                  const rideAsDriver: DriverData = {
+                    id: ride.id,
+                    name: ride.name || "Пользователь",
+                    avatar: getAvatarLabel(ride.name || "Пользователь", ride.avatar),
+                    coords: [lat, lng],
+                    price: ride.price || 0,
+                    timer,
+                    car: ride.car || "Авто",
+                    rating: ride.rating || 4.5,
+                    trips: ride.trips || 0,
+                    vkId: ride.vk_id || "",
+                    telegram: ride.telegram || "",
+                    supabaseId: ride.id,
+                    driverId: ride.driver_id ?? null,
+                    driverPhotoUrl: ride.avatar?.startsWith("http") ? ride.avatar : undefined,
+                    rideType: ride.type,
+                    rideStatus: (ride.status as RideStatus | null) ?? "searching",
+                    rideComment: ride.comment ?? null,
+                    fromLocation: ride.from_location,
+                    toLocation: ride.to_location,
+                    activeRide: ride,
+                  }
+
+                  return (
+                    <DriverPlacemark
+                      key={`supabase-${ride.id}`}
+                      driver={rideAsDriver}
+                      isPersistent={persistent}
+                      createdAt={ride.created_at}
+                      rideType={ride.type}
+                      onClick={() => setSelectedDriver(rideAsDriver)}
+                    />
+                  )
+                })
+                .filter(Boolean)}
           </YMap>
         </YMaps>
       ) : (
         <div className="h-full w-full flex items-center justify-center bg-[#EBEDF0] text-[#818C99]">
-          {isVkReady ? "Загрузка карты..." : "Инициализация VK Mini App..."}
+          Инициализация VK Mini App...
+        </div>
+      )}
+
+      {isVkReady && !isYandexReady && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#EBEDF0]/80 text-[#818C99]">
+          Загрузка карты...
         </div>
       )}
 
@@ -1173,11 +1184,12 @@ function CityMapView({
       {/* Add Request Modal — быстрый город */}
       {showAddRequest && (
         <AddRequestModal
-          variant="city"
+          variant={mode === "city" ? (userRole === "Driver" ? "cityDriver" : "cityPassenger") : "intercity"}
           pinCoords={addPinCoords}
           onClose={() => setShowAddRequest(false)}
           onRideAdded={onRideAdded}
           userRole={userRole}
+          mode={mode}
           city={city}
           vkUser={vkUser}
         />
@@ -1497,23 +1509,33 @@ function DriverBottomSheet({
   )
 }
 
+type AddModalVariant = "cityDriver" | "cityPassenger" | "intercity"
+
 function AddRequestModal({
   variant,
   pinCoords,
   onClose,
   onRideAdded,
   userRole,
+  mode,
   city,
   vkUser,
 }: {
-  variant: "city" | "intercity"
+  variant: AddModalVariant
   pinCoords?: { lat: number; lng: number } | null
   onClose: () => void
   onRideAdded: () => void
   userRole: string
+  mode: Mode
   city: AppCity
   vkUser: VkUserProfile | null
 }) {
+  const disableT9 = {
+    autoComplete: "off" as const,
+    autoCorrect: "off" as const,
+    spellCheck: false as const,
+    inputMode: "text" as const,
+  }
   const [whereStanding, setWhereStanding] = useState("")
   const [toCity, setToCity] = useState("")
   const [comment, setComment] = useState("")
@@ -1527,7 +1549,7 @@ function AddRequestModal({
   const [citySuggestions, setCitySuggestions] = useState<{ text: string; lat: number; lng: number }[]>([])
   const [cityCoordsOverride, setCityCoordsOverride] = useState<{ lat: number; lng: number } | null>(null)
   useEffect(() => {
-    if (variant !== "city") return
+    if (variant !== "cityDriver" && variant !== "cityPassenger") return
     const q = whereStanding.trim()
     if (q.length < 3) {
       setCitySuggestions([])
@@ -1626,7 +1648,7 @@ function AddRequestModal({
     onClose()
   }
 
-  const handleSubmitIntercity = async () => {
+  const handleSubmitIntercity = async (forceCityType?: boolean) => {
     if (!price || isSubmitting) return
 
     setIsSubmitting(true)
@@ -1673,7 +1695,7 @@ function AddRequestModal({
       lat,
       lng,
       price: parseInt(price, 10),
-      type: userRole,
+      type: forceCityType ? "City" : userRole,
       status: "searching",
       from_location: fromLoc,
       to_location: toLoc,
@@ -1720,7 +1742,7 @@ function AddRequestModal({
     onClose()
   }
 
-  if (variant === "city") {
+  if (variant === "cityDriver") {
     return (
       <div className="absolute inset-0 z-30 flex items-end bg-black/50" onClick={onClose}>
         <div
@@ -1741,6 +1763,7 @@ function AddRequestModal({
                 type="text"
                 placeholder="Где я стою (ориентир)"
                 value={whereStanding}
+                {...disableT9}
                 onChange={(e) => {
                   const v = e.target.value
                   setWhereStanding(v)
@@ -1770,12 +1793,14 @@ function AddRequestModal({
                 type="text"
                 placeholder="Куда еду по городу"
                 value={toCity}
+                {...disableT9}
                 onChange={(e) => setToCity(e.target.value)}
                 className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
               />
             <textarea
               placeholder="Комментарий (необязательно): детали, время, что везёте…"
               value={comment}
+              {...disableT9}
               onChange={(e) => setComment(e.target.value)}
               rows={3}
               className="w-full resize-none rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
@@ -1819,6 +1844,112 @@ function AddRequestModal({
     )
   }
 
+  if (variant === "cityPassenger") {
+    return (
+      <div className="absolute inset-0 z-30 flex items-end bg-black/50" onClick={onClose}>
+        <div
+          className="w-full animate-in rounded-t-2xl bg-white duration-300 slide-in-from-bottom"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#D3D9DE]" />
+
+            <h2 className="mb-1 text-xl font-bold text-[#2C2D2E]">Новая заявка</h2>
+            <p className="mb-4 text-sm text-[#818C99]">Адрес привяжется к точке на карте.</p>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Адрес отправления (напр. Ленина 42)"
+                value={whereStanding}
+                {...disableT9}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setWhereStanding(v)
+                  setCityCoordsOverride(null)
+                }}
+                className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
+              />
+              {citySuggestions.length > 0 && (
+                <div className="rounded-xl border border-[#E1E3E6] bg-white shadow-sm">
+                  {citySuggestions.map((sug, idx) => (
+                    <button
+                      type="button"
+                      key={`${sug.text}-${idx}`}
+                      onClick={() => {
+                        setWhereStanding(sug.text)
+                        setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
+                        setCitySuggestions([])
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm text-[#2C2D2E] hover:bg-[#F2F3F5]"
+                    >
+                      {sug.text}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Куда еду по городу"
+                value={toCity}
+                {...disableT9}
+                onChange={(e) => setToCity(e.target.value)}
+                className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
+              />
+              <input
+                type="number"
+                placeholder="Бюджет (₽)"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
+              />
+              <textarea
+                placeholder="Комментарий (необязательно)"
+                value={comment}
+                {...disableT9}
+                onChange={(e) => setComment(e.target.value)}
+                rows={2}
+                className="w-full resize-none rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
+              />
+              <div className="rounded-xl bg-[#F2F3F5] px-4 py-3">
+                <p className="text-sm font-medium text-[#2C2D2E]">Требуется мест</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((seat) => (
+                    <button
+                      key={seat}
+                      type="button"
+                      onClick={() => setSeatCount(seat)}
+                      className={`h-10 w-10 rounded-full border text-sm font-semibold transition-colors ${
+                        seat <= seatCount
+                          ? "border-[#2787F5] bg-[#2787F5] text-white"
+                          : "border-[#D3D9DE] bg-white text-[#2C2D2E]"
+                      }`}
+                      aria-pressed={seat <= seatCount}
+                    >
+                      {seat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {submitError && (
+                <p className="rounded-xl bg-[#FAEBEB] px-3 py-2 text-sm text-[#E64646]">{submitError}</p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleSubmitIntercity(true)}
+              disabled={isSubmitting || !price || !whereStanding.trim() || !toCity.trim()}
+              className="mt-4 w-full rounded-xl bg-[#2787F5] py-3.5 font-semibold text-white transition-colors active:bg-[#1F6AD8] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? "Публикация…" : "Опубликовать"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="absolute inset-0 z-30 flex items-end bg-black/50" onClick={onClose}>
       <div
@@ -1835,6 +1966,7 @@ function AddRequestModal({
               type="text"
               placeholder="Адрес отправления (напр. Ленина 42)"
               value={address}
+              {...disableT9}
               onChange={(e) => setAddress(e.target.value)}
               className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
             />
@@ -1842,6 +1974,7 @@ function AddRequestModal({
               type="text"
               placeholder="Куда"
               value={to}
+              {...disableT9}
               onChange={(e) => setTo(e.target.value)}
               className="w-full rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
             />
@@ -1855,6 +1988,7 @@ function AddRequestModal({
             <textarea
               placeholder="Комментарий (необязательно)"
               value={comment}
+              {...disableT9}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
               className="w-full resize-none rounded-xl bg-[#F2F3F5] px-4 py-3 text-[#2C2D2E] placeholder-[#818C99] outline-none focus:ring-2 focus:ring-[#2787F5]"
@@ -2047,6 +2181,7 @@ function IntercityFeed({
           onClose={() => setIntercityAddRequestOpen(false)}
           onRideAdded={onRideAdded}
           userRole={userRole}
+          mode="intercity"
           city={selectedCity}
           vkUser={vkUser}
         />
