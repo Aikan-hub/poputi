@@ -14,6 +14,7 @@ export interface ChatMessageRow {
   thread_id: string
   sender_vk_id: string
   body: string
+  metadata?: unknown | null
   created_at: string
 }
 
@@ -100,16 +101,20 @@ export async function appendThreadMessage(
   supabase: SupabaseClient,
   threadId: string,
   senderVkId: string,
-  body: string
+  body: string,
+  metadata?: unknown
 ): Promise<boolean> {
   const trimmed = body.trim()
   if (!trimmed) return false
 
-  const { error: mErr } = await supabase.from("chat_messages").insert({
+  const payload: Record<string, unknown> = {
     thread_id: threadId,
     sender_vk_id: senderVkId.trim(),
     body: trimmed,
-  })
+  }
+  if (metadata !== undefined) payload.metadata = metadata
+
+  const { error: mErr } = await supabase.from("chat_messages").insert(payload)
   if (mErr) {
     console.error("appendThreadMessage insert", mErr)
     return false

@@ -18,6 +18,7 @@ import {
   hasDriverAccess,
   syncDriverAccessFromServer,
 } from "@/lib/driver-payment"
+import { acceptRideOffer, createRideOffer, rejectRideOffer } from "@/lib/ride-flow"
 import { rpcBookIntercitySeat } from "@/lib/intercity-booking"
 import { supabase } from "@/lib/supabase-client"
 import { DEFAULT_APP_CITY, type AppCity } from "@/lib/cities"
@@ -344,6 +345,46 @@ export default function PoputiApp() {
     [vkUser, fetchRides, handleBooking]
   )
 
+  const handleDriverOffer = useCallback(
+    async (ride: SupabaseRide, priceDelta: number): Promise<boolean> => {
+      if (!vkUser) return false
+      if ((ride.type || "").trim() !== "City") return false
+      const driverTag = vkIdTagFromNumericId(vkUser.id)
+      const passengerTag = (ride.vk_id || "").trim()
+      if (!passengerTag || passengerTag === driverTag) return false
+
+      const driverName = `${vkUser.first_name} ${vkUser.last_name}`.trim() || "Водитель"
+      const res = await createRideOffer(supabase, {
+        rideId: ride.id,
+        passengerVkId: passengerTag,
+        driverVkId: driverTag,
+        driverName,
+        driverAvatar: vkUser.photo_200 || null,
+        driverCar: "Авто",
+        driverRating: 5,
+        pickupEtaMin: 7,
+        basePrice: ride.price || 0,
+        priceDelta,
+        from: ride.from_location,
+        to: ride.to_location,
+      })
+      if (!res.ok) return false
+
+      const passengerVk = passengerTag.replace(/^id/i, "")
+      if (passengerVk) {
+        void supabase.functions.invoke("notify-vk", {
+          body: {
+            vk_user_id: passengerVk,
+            message: `${driverName} откликнулся на вашу поездку за ${(ride.price || 0) + priceDelta} ₽.`,
+          },
+        })
+      }
+      await loadChats()
+      return true
+    },
+    [vkUser, loadChats]
+  )
+
   const handlePassengerCancel = useCallback(
     async (ride: SupabaseRide): Promise<boolean> => {
       if (!vkUser) return false
@@ -381,6 +422,33 @@ export default function PoputiApp() {
     [vkUser, fetchRides]
   )
 
+  const handleDriverArrive = useCallback(
+    async (ride: SupabaseRide): Promise<boolean> => {
+      if (!vkUser) return false
+      const driverTag = vkIdTagFromNumericId(vkUser.id)
+      const { data, error } = await supabase
+        .from("rides")
+        .update({ status: "arrived" })
+        .eq("id", ride.id)
+        .eq("driver_id", driverTag)
+        .eq("status", "accepted")
+        .select("id")
+      if (error || !data?.length) return false
+      await fetchRides()
+      const passengerVk = (ride.vk_id || "").replace(/^id/i, "")
+      if (passengerVk) {
+        void supabase.functions.invoke("notify-vk", {
+          body: {
+            vk_user_id: passengerVk,
+            message: "Водитель на месте. Выходите к точке подачи.",
+          },
+        })
+      }
+      return true
+    },
+    [vkUser, fetchRides]
+  )
+
   const handleDriverComplete = useCallback(
     async (ride: SupabaseRide): Promise<boolean> => {
       if (!vkUser) return false
@@ -393,10 +461,47 @@ export default function PoputiApp() {
         .eq("status", "in_transit")
         .select("id")
       if (error || !data?.length) return false
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("total_rides, average_rating")
+        .eq("vk_id", driverTag)
+        .maybeSingle()
+      if (prof) {
+        await supabase
+          .from("profiles")
+          .update({
+            total_rides: Number(prof.total_rides || 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("vk_id", driverTag)
+      } else {
+        await supabase.from("profiles").insert({
+          vk_id: driverTag,
+          total_rides: 1,
+          average_rating: 5,
+          updated_at: new Date().toISOString(),
+        })
+      }
       await fetchRides()
       return true
     },
     [vkUser, fetchRides]
+  )
+
+  const handleOfferAction = useCallback(
+    async (offerId: number, action: "accept" | "reject"): Promise<boolean> => {
+      if (!vkUser) return false
+      const myTag = vkIdTagFromNumericId(vkUser.id)
+      const ok =
+        action === "accept"
+          ? await acceptRideOffer(supabase, offerId, myTag)
+          : await rejectRideOffer(supabase, offerId, myTag)
+      if (!ok) return false
+      await fetchRides()
+      await loadChats()
+      return true
+    },
+    [vkUser, fetchRides, loadChats]
   )
 
   const handleIntercityReserve = useCallback(
@@ -512,7 +617,9 @@ export default function PoputiApp() {
                 onOpenIntercityManage={setIntercityManageRide}
                 onOpenIntercitySeatBook={setIntercitySeatBookRide}
                 onCityPickup={handleCityPickup}
+                onDriverOffer={handleDriverOffer}
                 onPassengerCancel={handlePassengerCancel}
+                onDriverArrive={handleDriverArrive}
                 onDriverStart={handleDriverStart}
                 onDriverComplete={handleDriverComplete}
                 onRideStatusChanged={fetchRides}
@@ -538,6 +645,7 @@ export default function PoputiApp() {
                   void loadChats()
                 }}
                 onMessagesChanged={loadChats}
+                onOfferAction={handleOfferAction}
               />
             )}
             {activeTab === "profile" && (

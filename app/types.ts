@@ -14,6 +14,27 @@ export type ChatData = {
   vkTag?: string
 }
 
+export type RideOfferStatus = "pending" | "accepted" | "rejected" | "cancelled"
+
+export type RideOfferMetadata = {
+  kind: "ride_offer"
+  offerId: number
+  rideId: number
+  driverVkId: string
+  passengerVkId: string
+  driverName: string
+  driverAvatarUrl?: string | null
+  driverCar?: string | null
+  driverRating?: number | null
+  pickupEtaMin?: number | null
+  price: number
+  status: RideOfferStatus
+  from?: string | null
+  to?: string | null
+}
+
+export type ChatMessageMetadata = RideOfferMetadata | null
+
 export type PeerProfile = {
   avatar_url?: string
   display_name?: string
@@ -94,6 +115,22 @@ export interface SupabaseRide {
   city?: string | null
   status?: string | null
   comment?: string | null
+}
+
+export interface RideOfferRow {
+  id: number
+  ride_id: number
+  driver_vk_id: string
+  passenger_vk_id: string
+  price: number
+  price_delta: number
+  status: RideOfferStatus
+  driver_name?: string | null
+  driver_avatar?: string | null
+  driver_car?: string | null
+  driver_rating?: number | null
+  pickup_eta_min?: number | null
+  created_at: string
 }
 
 export interface VkUserProfile {

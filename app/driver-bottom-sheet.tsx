@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Car, Clock, MapPin, Trash2 } from "lucide-react"
+import { Car, Clock, MapPin, Navigation, Trash2 } from "lucide-react"
 import { isPersistentRideType } from "@/lib/rides"
+import { openRideNavigator } from "@/lib/ride-flow"
 import {
   type RideStatus,
   statusLabel,
   canPassengerCancel,
   canDriverTake,
+  canDriverArrive,
   canDriverStart,
   canDriverComplete,
 } from "@/lib/ride-status"
@@ -21,7 +23,9 @@ export function DriverBottomSheet({
   onClose,
   onBooking,
   onCityPickup,
+  onDriverOffer,
   onPassengerCancel,
+  onDriverArrive,
   onDriverStart,
   onDriverComplete,
   onDelete,
@@ -33,7 +37,9 @@ export function DriverBottomSheet({
   onClose: () => void
   onBooking: () => void
   onCityPickup: (ride: SupabaseRide) => Promise<boolean>
+  onDriverOffer: (ride: SupabaseRide, priceDelta: number) => Promise<boolean>
   onPassengerCancel: (ride: SupabaseRide) => Promise<boolean>
+  onDriverArrive: (ride: SupabaseRide) => Promise<boolean>
   onDriverStart: (ride: SupabaseRide) => Promise<boolean>
   onDriverComplete: (ride: SupabaseRide) => Promise<boolean>
   onDelete?: () => void
@@ -41,7 +47,7 @@ export function DriverBottomSheet({
 }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<"take" | "start" | "complete" | "cancel" | null>(null)
+  const [busy, setBusy] = useState<"offer" | "take" | "arrive" | "start" | "complete" | "cancel" | null>(null)
   const isStaticPoint = isPersistentRideType(driver.rideType)
   const isCity = (driver.rideType || "").trim() === "City"
   const isOwner = viewerVkTag != null && driver.vkId === viewerVkTag
@@ -49,6 +55,7 @@ export function DriverBottomSheet({
   const viewerIsDriver = viewerVkTag != null && driver.driverId === viewerVkTag
 
   const canTakeCity = isCity && userRole === "Driver" && !isOwner && canDriverTake(status) && driver.activeRide
+  const canArriveRide = isCity && viewerIsDriver && canDriverArrive(status, true) && driver.activeRide
   const canStartRide = isCity && viewerIsDriver && canDriverStart(status, true) && driver.activeRide
   const canCompleteRide = isCity && viewerIsDriver && canDriverComplete(status, true) && driver.activeRide
   const canCancelByPassenger = !isStaticPoint && isOwner && canPassengerCancel(status) && driver.activeRide
@@ -64,7 +71,7 @@ export function DriverBottomSheet({
     }
   }
 
-  const execAction = async (kind: "take" | "start" | "complete" | "cancel", fn: () => Promise<boolean>) => {
+  const execAction = async (kind: "take" | "arrive" | "start" | "complete" | "cancel", fn: () => Promise<boolean>) => {
     setBusy(kind)
     setActionError(null)
     const ok = await fn()
@@ -75,6 +82,27 @@ export function DriverBottomSheet({
     } else {
       setActionError("Не удалось выполнить действие. Обновите карту и попробуйте снова.")
     }
+  }
+
+  const sendOffer = async (priceDelta: number) => {
+    if (!driver.activeRide || busy !== null) return
+    setBusy("offer")
+    setActionError(null)
+    const ok = await onDriverOffer(driver.activeRide, priceDelta)
+    setBusy(null)
+    if (ok) {
+      setActionError("Отклик отправлен пассажиру в чат.")
+    } else {
+      setActionError("Не удалось отправить отклик. Возможно, заявка уже занята.")
+    }
+  }
+
+  const openNavigator = () => {
+    openRideNavigator({
+      fromLat: driver.coords[0],
+      fromLng: driver.coords[1],
+      toText: driver.toLocation || driver.fromLocation,
+    })
   }
 
   return (
@@ -151,13 +179,48 @@ export function DriverBottomSheet({
 
         <div className="space-y-2">
           {canTakeCity && (
+            <div className="rounded-2xl bg-[#F7F8FA] p-3">
+              <p className="mb-2 text-sm font-semibold text-[#2C2D2E]">Откликнуться с ценой</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { delta: 0, label: `За ${driver.price || 0} ₽` },
+                  { delta: 10, label: "+10 ₽" },
+                  { delta: 30, label: "+30 ₽" },
+                  { delta: 50, label: "+50 ₽" },
+                ].map((item) => (
+                  <button
+                    key={item.delta}
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() => void sendOffer(item.delta)}
+                    className="rounded-xl bg-white py-3 text-sm font-bold text-[#2787F5] shadow-sm ring-1 ring-[#E1E3E6] transition-colors active:bg-[#F0F6FF] disabled:opacity-50"
+                  >
+                    {busy === "offer" ? "Отправка…" : item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {viewerIsDriver && isCity && (
+            <button
+              type="button"
+              onClick={openNavigator}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F0F6FF] py-3 text-base font-semibold text-[#2787F5] transition-colors active:bg-[#DCEBFF]"
+            >
+              <Navigation className="h-4 w-4" />
+              Открыть в навигаторе
+            </button>
+          )}
+
+          {canArriveRide && (
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => void execAction("take", () => onCityPickup(driver.activeRide!))}
-              className="w-full rounded-xl bg-[#2787F5] py-4 text-base font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:opacity-50"
+              onClick={() => void execAction("arrive", () => onDriverArrive(driver.activeRide!))}
+              className="w-full rounded-xl bg-[#2787F5] py-3 text-base font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:opacity-50"
             >
-              {busy === "take" ? "Берём заявку…" : "Взять заказ"}
+              {busy === "arrive" ? "Отправляем…" : "На месте"}
             </button>
           )}
 

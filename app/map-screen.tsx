@@ -31,7 +31,9 @@ export function MapScreen({
   onOpenIntercityManage,
   onOpenIntercitySeatBook,
   onCityPickup,
+  onDriverOffer,
   onPassengerCancel,
+  onDriverArrive,
   onDriverStart,
   onDriverComplete,
   onRideStatusChanged,
@@ -64,7 +66,9 @@ export function MapScreen({
   onOpenIntercityManage: (ride: SupabaseRide) => void
   onOpenIntercitySeatBook: (ride: SupabaseRide) => void
   onCityPickup: (ride: SupabaseRide) => Promise<boolean>
+  onDriverOffer: (ride: SupabaseRide, priceDelta: number) => Promise<boolean>
   onPassengerCancel: (ride: SupabaseRide) => Promise<boolean>
+  onDriverArrive: (ride: SupabaseRide) => Promise<boolean>
   onDriverStart: (ride: SupabaseRide) => Promise<boolean>
   onDriverComplete: (ride: SupabaseRide) => Promise<boolean>
   onRideStatusChanged: () => void
@@ -124,7 +128,9 @@ export function MapScreen({
           setShowAddRequest={setShowAddRequest}
           onBooking={onBooking}
           onCityPickup={onCityPickup}
+          onDriverOffer={onDriverOffer}
           onPassengerCancel={onPassengerCancel}
+          onDriverArrive={onDriverArrive}
           onDriverStart={onDriverStart}
           onDriverComplete={onDriverComplete}
           onRideStatusChanged={onRideStatusChanged}
@@ -164,7 +170,9 @@ function CityMapView({
   setShowAddRequest,
   onBooking,
   onCityPickup,
+  onDriverOffer,
   onPassengerCancel,
+  onDriverArrive,
   onDriverStart,
   onDriverComplete,
   onRideStatusChanged,
@@ -192,7 +200,9 @@ function CityMapView({
     messageIntro?: string
   }) => void | Promise<void>
   onCityPickup: (ride: SupabaseRide) => Promise<boolean>
+  onDriverOffer: (ride: SupabaseRide, priceDelta: number) => Promise<boolean>
   onPassengerCancel: (ride: SupabaseRide) => Promise<boolean>
+  onDriverArrive: (ride: SupabaseRide) => Promise<boolean>
   onDriverStart: (ride: SupabaseRide) => Promise<boolean>
   onDriverComplete: (ride: SupabaseRide) => Promise<boolean>
   onRideStatusChanged: () => void
@@ -219,7 +229,7 @@ function CityMapView({
         viewerTag && (ride.driver_id === viewerTag || ride.partner_vk_id === viewerTag)
       )
       if (st === "searching") return true
-      if (st === "accepted" || st === "in_transit") return isOwner || isDriver
+      if (st === "accepted" || st === "arrived" || st === "in_transit") return isOwner || isDriver
       if (st === "completed" || st === "cancelled") return isOwner || isDriver
       return true
     },
@@ -386,7 +396,9 @@ function CityMapView({
             })
           }
           onCityPickup={onCityPickup}
+          onDriverOffer={onDriverOffer}
           onPassengerCancel={onPassengerCancel}
+          onDriverArrive={onDriverArrive}
           onDriverStart={onDriverStart}
           onDriverComplete={onDriverComplete}
           onStatusChanged={onRideStatusChanged}

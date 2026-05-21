@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   canDriverComplete,
+  canDriverArrive,
   canDriverStart,
   canDriverTake,
   canPassengerCancel,
@@ -11,7 +12,7 @@ import {
 } from "./ride-status"
 
 describe("ride-status helpers", () => {
-  const statuses: RideStatus[] = ["searching", "accepted", "in_transit", "completed", "cancelled"]
+  const statuses: RideStatus[] = ["searching", "accepted", "arrived", "in_transit", "completed", "cancelled"]
 
   it("has labels for all statuses", () => {
     for (const st of statuses) {
@@ -22,6 +23,7 @@ describe("ride-status helpers", () => {
   it("detects active statuses", () => {
     expect(isActiveStatus("searching")).toBe(true)
     expect(isActiveStatus("accepted")).toBe(true)
+    expect(isActiveStatus("arrived")).toBe(true)
     expect(isActiveStatus("in_transit")).toBe(true)
     expect(isActiveStatus("completed")).toBe(false)
     expect(isActiveStatus("cancelled")).toBe(false)
@@ -37,7 +39,10 @@ describe("ride-status helpers", () => {
   it("driver actions require matching status", () => {
     expect(canDriverTake("searching")).toBe(true)
     expect(canDriverTake("accepted")).toBe(false)
+    expect(canDriverArrive("accepted", true)).toBe(true)
+    expect(canDriverArrive("arrived", true)).toBe(false)
     expect(canDriverStart("accepted", true)).toBe(true)
+    expect(canDriverStart("arrived", true)).toBe(true)
     expect(canDriverStart("accepted", false)).toBe(false)
     expect(canDriverComplete("in_transit", true)).toBe(true)
     expect(canDriverComplete("in_transit", false)).toBe(false)

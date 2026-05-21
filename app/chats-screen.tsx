@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { ChevronLeft, MessageCircle, Send, Trash2, UserRound } from "lucide-react"
 import { appendThreadMessage, fetchThreadMessages } from "@/lib/chats-db"
 import { supabase } from "@/lib/supabase-client"
-import type { ChatData, VkUserProfile } from "./types"
+import type { ChatData, ChatMessageMetadata, RideOfferMetadata, VkUserProfile } from "./types"
 import { vkIdTagFromNumericId } from "./helpers"
 
 export function ChatsScreen({
@@ -16,6 +16,7 @@ export function ChatsScreen({
   onOpenProfile,
   onDeleteChat,
   onMessagesChanged,
+  onOfferAction,
 }: {
   selectedChat: ChatData | null
   setSelectedChat: (chat: ChatData | null) => void
@@ -25,6 +26,7 @@ export function ChatsScreen({
   onOpenProfile: (profile: ChatData) => void
   onDeleteChat: (threadId: string) => void | Promise<void>
   onMessagesChanged: () => void | Promise<void>
+  onOfferAction: (offerId: number, action: "accept" | "reject") => Promise<boolean>
 }) {
   if (selectedChat && vkUser) {
     return (
@@ -34,6 +36,7 @@ export function ChatsScreen({
         onBack={() => setSelectedChat(null)}
         onOpenProfile={() => onOpenProfile(selectedChat)}
         onMessagesChanged={onMessagesChanged}
+        onOfferAction={onOfferAction}
       />
     )
   }
@@ -138,15 +141,17 @@ function ChatView({
   onBack,
   onOpenProfile,
   onMessagesChanged,
+  onOfferAction,
 }: {
   chat: ChatData
   myVkTag: string
   onBack: () => void
   onOpenProfile: () => void
   onMessagesChanged: () => void | Promise<void>
+  onOfferAction: (offerId: number, action: "accept" | "reject") => Promise<boolean>
 }) {
   const [message, setMessage] = useState("")
-  const [messages, setMessages] = useState<{ id: number; text: string; isMe: boolean }[]>([])
+  const [messages, setMessages] = useState<{ id: number; text: string; isMe: boolean; metadata: ChatMessageMetadata }[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -161,6 +166,7 @@ function ChatView({
         id: m.id,
         text: m.body,
         isMe: m.sender_vk_id.trim() === myVkTag,
+        metadata: normalizeMessageMetadata(m.metadata),
       }))
     )
     setLoading(false)
@@ -202,6 +208,25 @@ function ChatView({
     void onMessagesChanged()
   }
 
+  const handleOfferAction = async (messageId: number, offer: RideOfferMetadata, action: "accept" | "reject") => {
+    const ok = await onOfferAction(offer.offerId, action)
+    if (!ok) return
+    const nextStatus: RideOfferMetadata["status"] = action === "accept" ? "accepted" : "rejected"
+    const nextMetadata = { ...offer, status: nextStatus }
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? { ...msg, metadata: nextMetadata } : msg))
+    )
+    await supabase.from("chat_messages").update({ metadata: nextMetadata }).eq("id", messageId)
+    await appendThreadMessage(
+      supabase,
+      threadId,
+      myVkTag,
+      action === "accept" ? "Отклик принят. Можно договариваться о подаче." : "Отклик отклонён."
+    )
+    await reloadMessages()
+    void onMessagesChanged()
+  }
+
   return (
     <div className="flex h-full flex-col bg-[#EBEDF0]">
       <header className="flex items-center gap-3 border-b border-[#E1E3E6]/80 bg-white px-4 py-3 shadow-sm">
@@ -233,13 +258,22 @@ function ChatView({
         {!loading &&
           messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                  msg.isMe ? "rounded-br-md bg-[#2787F5] text-white" : "rounded-bl-md bg-white text-[#2C2D2E] ring-1 ring-[#E1E3E6]/70"
-                }`}
-              >
-                {msg.text}
-              </div>
+              {msg.metadata?.kind === "ride_offer" ? (
+                <RideOfferCard
+                  offer={msg.metadata}
+                  isPassenger={myVkTag === msg.metadata.passengerVkId}
+                  onAccept={() => void handleOfferAction(msg.id, msg.metadata as RideOfferMetadata, "accept")}
+                  onReject={() => void handleOfferAction(msg.id, msg.metadata as RideOfferMetadata, "reject")}
+                />
+              ) : (
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
+                    msg.isMe ? "rounded-br-md bg-[#2787F5] text-white" : "rounded-bl-md bg-white text-[#2C2D2E] ring-1 ring-[#E1E3E6]/70"
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              )}
             </div>
           ))}
         <div ref={messagesEndRef} />
@@ -268,6 +302,71 @@ function ChatView({
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function normalizeMessageMetadata(value: unknown): ChatMessageMetadata {
+  if (!value || typeof value !== "object") return null
+  const maybe = value as Partial<RideOfferMetadata>
+  if (maybe.kind !== "ride_offer" || typeof maybe.offerId !== "number") return null
+  return maybe as RideOfferMetadata
+}
+
+function RideOfferCard({
+  offer,
+  isPassenger,
+  onAccept,
+  onReject,
+}: {
+  offer: RideOfferMetadata
+  isPassenger: boolean
+  onAccept: () => void
+  onReject: () => void
+}) {
+  const decided = offer.status !== "pending"
+  return (
+    <div className="w-full max-w-[92%] rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E1E3E6]/80">
+      <div className="flex items-center gap-3">
+        {offer.driverAvatarUrl ? (
+          <img src={offer.driverAvatarUrl} alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-[#2787F5]/20" />
+        ) : (
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2787F5] font-bold text-white">
+            {offer.driverName.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-[#2C2D2E]">{offer.driverName}</p>
+          <p className="text-xs text-[#818C99]">
+            {offer.driverCar || "Авто"} · ★ {(offer.driverRating ?? 5).toFixed(1)} · {offer.pickupEtaMin ?? 7} мин
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-bold text-[#00BFA5]">{offer.price} ₽</p>
+          <p className="text-xs text-[#818C99]">итого</p>
+        </div>
+      </div>
+      <div className="mt-3 rounded-xl bg-[#F7F8FA] px-3 py-2 text-sm font-medium text-[#2C2D2E]">
+        {(offer.from || "Откуда") + " → " + (offer.to || "Куда")}
+      </div>
+      {decided ? (
+        <div className="mt-3 rounded-xl bg-[#F0F6FF] py-2 text-center text-sm font-semibold text-[#2787F5]">
+          {offer.status === "accepted" ? "Отклик принят" : "Отклик отклонён"}
+        </div>
+      ) : isPassenger ? (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onReject} className="rounded-xl bg-[#FAEBEB] py-2.5 text-sm font-semibold text-[#E64646]">
+            Отказать
+          </button>
+          <button type="button" onClick={onAccept} className="rounded-xl bg-[#2787F5] py-2.5 text-sm font-semibold text-white">
+            Согласиться
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-xl bg-[#F7F8FA] py-2 text-center text-sm font-medium text-[#818C99]">
+          Ожидаем ответа пассажира
+        </div>
+      )}
     </div>
   )
 }
