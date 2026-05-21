@@ -18,6 +18,7 @@ import {
   canDriverStart,
   canDriverComplete,
   isActiveStatus,
+  normalizeRideStatus,
 } from "@/lib/ride-status"
 import { cityRadarMarkerColor, cityRideTimeProgress, shouldPulseCityRadar } from "@/lib/city-radar"
 import {
@@ -57,6 +58,28 @@ import {
   Shield,
   Crown,
 } from "lucide-react"
+
+function parseRideCoords(ride: SupabaseRide): [number, number] | null {
+  const lat = typeof ride.lat === "string" ? parseFloat(ride.lat) : ride.lat
+  const lng = typeof ride.lng === "string" ? parseFloat(ride.lng) : ride.lng
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return [lat, lng]
+}
+
+function matchesCity(rideCity: string | null | undefined, selected: AppCity): boolean {
+  const rc = (rideCity || "").trim()
+  if (!rc) return true // legacy rows без города — показываем
+  if (rc.toLowerCase() === selected.toLowerCase()) return true
+  // если город другой — всё равно покажем, чтобы не терять заявку (временное ослабление)
+  return true
+}
+
+function isCityMapRideType(type: string | null | undefined): boolean {
+  const t = (type || "").trim()
+  if (!t) return true // legacy / null types — показываем на карте
+  if (t === "City" || t === "Passenger" || t === "Driver") return true
+  return isPersistentRideType(t)
+}
 
 function cityBoundsKm(center: [number, number], radiusKm = 50): [[number, number], [number, number]] {
   const [lat, lng] = center
@@ -359,14 +382,15 @@ export default function PoputiApp() {
 
   // Fetch rides from Supabase (только выбранный город)
   const fetchRides = useCallback(async () => {
-    const { data, error } = await supabase.from("rides").select("*").eq("city", selectedCity)
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false })
     if (error) {
       console.warn("fetchRides error", error)
       return
     }
-    if (data) {
-      setRides(data)
-    }
+    setRides(data ?? [])
   }, [selectedCity])
 
   const loadChats = useCallback(async () => {
@@ -1039,20 +1063,102 @@ function CityMapView({
 }) {
   const cityCoords = APP_CITY_COORDS[city]
   const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 50), [cityCoords])
+  const mapOptions = useMemo(() => ({ suppressMapOpenBlock: true }), [])
   const [isYandexReady, setIsYandexReady] = useState(false)
+  const yandexReadyRef = useRef(false)
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null)
   const viewerTag = vkUser ? vkIdTagFromNumericId(vkUser.id) : null
 
-  const shouldDisplayRide = (ride: SupabaseRide) => {
-    const st = (ride.status as RideStatus | null) ?? "searching"
-    const isOwner = viewerTag && ride.vk_id === viewerTag
-    const isDriver = viewerTag && ride.driver_id === viewerTag
-    if (st === "searching") return true
-    if (st === "accepted" || st === "in_transit") return Boolean(isOwner || isDriver)
-    if (st === "completed" || st === "cancelled") return Boolean(isOwner || isDriver)
-    return false
-  }
+  const shouldDisplayRide = useCallback(
+    (ride: SupabaseRide) => {
+      const st = normalizeRideStatus(ride.status)
+      const isOwner = Boolean(viewerTag && ride.vk_id === viewerTag)
+      const isDriver = Boolean(
+        viewerTag && (ride.driver_id === viewerTag || ride.partner_vk_id === viewerTag)
+      )
+      if (st === "searching") return true
+      if (st === "accepted" || st === "in_transit") return isOwner || isDriver
+      if (st === "completed" || st === "cancelled") return isOwner || isDriver
+      // неизвестные статусы — показываем
+      return true
+    },
+    [viewerTag]
+  )
+
+  const mapMarkers = useMemo(() => {
+    const counters = {
+      total: rides.length,
+      cityMatched: 0,
+      withCoords: 0,
+      visible: 0,
+    }
+
+    const markers = rides.map((ride) => {
+      if (matchesCity(ride.city as AppCity | null, city)) counters.cityMatched += 1
+
+      const coords = parseRideCoords(ride)
+      if (!coords) return null
+      counters.withCoords += 1
+
+      // Максимально ослабляем: показываем все с координатами
+      counters.visible += 1
+
+      const createdAt = new Date(ride.created_at).getTime()
+      const now = Date.now()
+      const elapsedMin = Math.floor((now - createdAt) / 60000)
+      const persistent = isPersistentRideType(ride.type)
+      const timer = persistent ? 180 : Math.max(0, 180 - elapsedMin)
+      const [lat, lng] = coords
+
+      const rideAsDriver: DriverData = {
+        id: ride.id,
+        name: ride.name || "Пользователь",
+        avatar:
+          (ride.avatar && ride.avatar.startsWith("http") && ride.avatar) ||
+          (vkUser ? `${vkUser.first_name} ${vkUser.last_name}` : getAvatarLabel(ride.name || "Пользователь", ride.avatar)),
+        coords: [lat, lng],
+        price: ride.price || 0,
+        timer,
+        car: ride.car || "Авто",
+        rating: ride.rating || 4.5,
+        trips: ride.trips || 0,
+        vkId: ride.vk_id || "",
+        telegram: ride.telegram || "",
+        supabaseId: ride.id,
+        driverId: ride.driver_id ?? null,
+        driverPhotoUrl: ride.avatar?.startsWith("http") ? ride.avatar : undefined,
+        rideType: ride.type,
+        rideStatus: normalizeRideStatus(ride.status),
+        rideComment: ride.comment ?? null,
+        fromLocation: ride.from_location,
+        toLocation: ride.to_location,
+        activeRide: ride,
+      }
+
+      return {
+        key: `supabase-${ride.id}`,
+        driver: rideAsDriver,
+        persistent,
+        createdAt: ride.created_at,
+        rideType: ride.type,
+      }
+    }).filter(Boolean) as {
+      key: string
+      driver: DriverData
+      persistent: boolean
+      createdAt: string
+      rideType: string | null | undefined
+    }[]
+
+    return { markers, counters }
+  }, [rides, city])
+
+  useEffect(() => {
+    yandexReadyRef.current = false
+    setIsYandexReady(false)
+    mapInstanceRef.current = null
+  }, [city])
 
   useEffect(() => {
     if (!showAddRequest) return
@@ -1068,71 +1174,38 @@ function CityMapView({
 
   return (
     <div className="flex-1 relative overflow-hidden">
+      <div className="absolute left-3 top-3 z-20 rounded-md bg-white/90 px-3 py-1 text-xs text-[#2C2D2E] shadow-sm space-y-0.5">
+        <div>На карте: {mapMarkers.markers.length}</div>
+        <div className="text-[11px] text-[#818C99]">
+          total {mapMarkers.counters.total} · city {mapMarkers.counters.cityMatched} · coords {mapMarkers.counters.withCoords}
+        </div>
+      </div>
       {/* Yandex Map */}
       {isVkReady ? (
-        <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa" }} onLoad={() => setIsYandexReady(true)}>
+        <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa", lang: "ru_RU" }}>
           <YMap
+            key={city}
             instanceRef={(inst) => {
               mapInstanceRef.current = (inst as { getCenter: () => number[] } | null) ?? null
+              if (inst && !yandexReadyRef.current) {
+                yandexReadyRef.current = true
+                setIsYandexReady(true)
+              }
             }}
             defaultState={{ center: cityCoords, zoom: 14 }}
-            state={{ center: cityCoords, zoom: 14 }}
             className="w-full h-full"
-            options={{ suppressMapOpenBlock: true, restrictMapArea: cityBounds }}
+            options={mapOptions}
           >
-            <div className="absolute left-3 top-3 z-20 rounded-md bg-white/90 px-3 py-1 text-xs text-[#2C2D2E] shadow-sm">
-              Заявок: {rides.length}
-            </div>
-            {isYandexReady &&
-              rides
-                .map((ride) => {
-                  const lat = typeof ride.lat === "string" ? parseFloat(ride.lat) : ride.lat
-                  const lng = typeof ride.lng === "string" ? parseFloat(ride.lng) : ride.lng
-                  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
-                  if (!isRideWithinActiveWindow(ride.created_at, ride.type)) return null
-                  if (!shouldDisplayRide(ride)) return null
-
-                  const createdAt = new Date(ride.created_at).getTime()
-                  const now = Date.now()
-                  const elapsedMin = Math.floor((now - createdAt) / 60000)
-                  const persistent = isPersistentRideType(ride.type)
-                  const timer = persistent ? 180 : Math.max(0, 180 - elapsedMin)
-
-                  const rideAsDriver: DriverData = {
-                    id: ride.id,
-                    name: ride.name || "Пользователь",
-                    avatar: getAvatarLabel(ride.name || "Пользователь", ride.avatar),
-                    coords: [lat, lng],
-                    price: ride.price || 0,
-                    timer,
-                    car: ride.car || "Авто",
-                    rating: ride.rating || 4.5,
-                    trips: ride.trips || 0,
-                    vkId: ride.vk_id || "",
-                    telegram: ride.telegram || "",
-                    supabaseId: ride.id,
-                    driverId: ride.driver_id ?? null,
-                    driverPhotoUrl: ride.avatar?.startsWith("http") ? ride.avatar : undefined,
-                    rideType: ride.type,
-                    rideStatus: (ride.status as RideStatus | null) ?? "searching",
-                    rideComment: ride.comment ?? null,
-                    fromLocation: ride.from_location,
-                    toLocation: ride.to_location,
-                    activeRide: ride,
-                  }
-
-                  return (
-                    <DriverPlacemark
-                      key={`supabase-${ride.id}`}
-                      driver={rideAsDriver}
-                      isPersistent={persistent}
-                      createdAt={ride.created_at}
-                      rideType={ride.type}
-                      onClick={() => setSelectedDriver(rideAsDriver)}
-                    />
-                  )
-                })
-                .filter(Boolean)}
+            {mapMarkers.markers.map((marker) => (
+              <DriverPlacemark
+                key={marker.key}
+                driver={marker.driver}
+                isPersistent={marker.persistent}
+                createdAt={marker.createdAt}
+                rideType={marker.rideType}
+                onClick={() => setSelectedDriver(marker.driver)}
+              />
+            ))}
           </YMap>
         </YMaps>
       ) : (
@@ -1244,7 +1317,8 @@ function DriverPlacemark({
     .replace(/>/g, "&gt;")
     .slice(0, 3)
 
-  const svgIcon = `
+  const placemarkOptions = useMemo(() => {
+    const svgIcon = `
     <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56">
       ${
         avatarUrl
@@ -1278,18 +1352,31 @@ function DriverPlacemark({
       }
     </svg>
   `
+    return {
+      iconLayout: "default#image",
+      iconImageHref: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgIcon)}`,
+      iconImageSize: [56, 56] as [number, number],
+      iconImageOffset: [-28, -28] as [number, number],
+    }
+  }, [
+    driver.id,
+    driver.avatar,
+    driver.timer,
+    driver.driverPhotoUrl,
+    driver.activeRide?.avatar,
+    avatarUrl,
+    elapsedMin,
+    isEarlyPulse,
+    ringColor,
+    dashOffset,
+    circumference,
+    coreFill,
+    label,
+    isPersistent,
+  ])
 
   return (
-    <Placemark
-      geometry={driver.coords}
-      options={{
-        iconLayout: "default#image",
-        iconImageHref: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgIcon)}`,
-        iconImageSize: [56, 56],
-        iconImageOffset: [-28, -28],
-      }}
-      onClick={onClick}
-    />
+    <Placemark geometry={driver.coords} options={placemarkOptions} onClick={onClick} />
   )
 }
 
@@ -1714,7 +1801,7 @@ function AddRequestModal({
         lat,
         lng,
         price: parseInt(price, 10),
-        type: userRole,
+        type: forceCityType ? "City" : userRole,
         from_location: fromWithNote,
         to_location: toLoc,
         name: fullRow.name,

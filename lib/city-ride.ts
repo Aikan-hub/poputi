@@ -15,13 +15,13 @@ export async function tryCityPickupFallback(
       .update(payload)
       .eq("id", rideId)
       .eq("type", "City")
-      .eq("status", "open")
+      .eq("status", "searching")
       .select("id")
     return { rows: data, err: error }
   }
 
   // 1) Primary: set status + partner (preferred, modern schema)
-  let { rows, err } = await tryWithPayload({ status: "in_progress", partner_vk_id: driverTag })
+  let { rows, err } = await tryWithPayload({ status: "accepted", partner_vk_id: driverTag, driver_id: driverTag })
 
   // 2) If column status is missing (old DB without migration), retry without touching status
   const statusMissing =
@@ -38,7 +38,7 @@ export async function tryCityPickupFallback(
   if ((err || !rows?.length) && !statusMissing) {
     const third = await supabase
       .from("rides")
-      .update({ status: "in_progress", partner_vk_id: driverTag })
+      .update({ status: "accepted", partner_vk_id: driverTag, driver_id: driverTag })
       .eq("id", rideId)
       .eq("type", "City")
       .is("partner_vk_id", null)

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
-import Script from 'next/script'
 import './globals.css'
 import { AppBootstrap } from './vk-bootstrap'
 
@@ -59,10 +58,6 @@ export default function RootLayout({
         )}
       </head>
       <body className="font-sans antialiased">
-        <Script
-          src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=77552578-1483-4cc6-8510-a0a7f7f340aa"
-          strategy="lazyOnload"
-        />
         <AppBootstrap />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

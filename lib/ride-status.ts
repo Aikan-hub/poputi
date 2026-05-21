@@ -38,3 +38,12 @@ export function canDriverStart(status: RideStatus | null | undefined, isDriver: 
 export function canDriverComplete(status: RideStatus | null | undefined, isDriver: boolean): boolean {
   return isDriver && status === "in_transit"
 }
+
+/** Приводит legacy-статусы из старой БД к актуальным значениям приложения. */
+export function normalizeRideStatus(raw: string | null | undefined): RideStatus {
+  const s = (raw ?? "").trim()
+  if (!s || s === "open") return "searching"
+  if (s === "in_progress") return "accepted"
+  if ((RIDE_STATUSES as readonly string[]).includes(s)) return s as RideStatus
+  return "searching"
+}

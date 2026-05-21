@@ -5,6 +5,7 @@ import {
   canDriverTake,
   canPassengerCancel,
   isActiveStatus,
+  normalizeRideStatus,
   statusLabel,
   type RideStatus,
 } from "./ride-status"
@@ -40,5 +41,12 @@ describe("ride-status helpers", () => {
     expect(canDriverStart("accepted", false)).toBe(false)
     expect(canDriverComplete("in_transit", true)).toBe(true)
     expect(canDriverComplete("in_transit", false)).toBe(false)
+  })
+
+  it("normalizes legacy statuses", () => {
+    expect(normalizeRideStatus("open")).toBe("searching")
+    expect(normalizeRideStatus("in_progress")).toBe("accepted")
+    expect(normalizeRideStatus(null)).toBe("searching")
+    expect(normalizeRideStatus("searching")).toBe("searching")
   })
 })
