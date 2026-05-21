@@ -626,6 +626,12 @@ export default function PoputiApp() {
                 intercityAddRequestOpen={intercityAddRequestOpen}
                 setIntercityAddRequestOpen={setIntercityAddRequestOpen}
                 ridesError={ridesError}
+                onBackToCitySelect={() => {
+                  setIntroCityDone(false)
+                  setSelectedDriver(null)
+                  setShowAddRequest(false)
+                  setIntercityAddRequestOpen(false)
+                }}
               />
             )}
             {activeTab === "chats" && (

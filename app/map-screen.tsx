@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { YMaps, Map as YMap } from "@pbe/react-yandex-maps"
-import { MapPin, Plus } from "lucide-react"
+import { ChevronLeft, MapPin, Plus } from "lucide-react"
 import { isPersistentRideType } from "@/lib/rides"
 import { normalizeRideStatus } from "@/lib/ride-status"
 import { APP_CITY_COORDS, type AppCity } from "@/lib/cities"
@@ -40,6 +40,7 @@ export function MapScreen({
   intercityAddRequestOpen,
   setIntercityAddRequestOpen,
   ridesError,
+  onBackToCitySelect,
 }: {
   city: AppCity
   isVkReady: boolean
@@ -75,17 +76,28 @@ export function MapScreen({
   intercityAddRequestOpen: boolean
   setIntercityAddRequestOpen: (v: boolean) => void
   ridesError: string | null
+  onBackToCitySelect: () => void
 }) {
   return (
     <div className="flex h-full flex-col bg-[#EBEDF0]">
       <header className="relative z-20 shrink-0 border-b border-[#E1E3E6]/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-[#818C99]">
-              <MapPin className="h-3.5 w-3.5" />
-              <span>Ваш город</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onBackToCitySelect}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EBEDF0] text-[#2787F5] transition-colors active:bg-[#D3D9DE]"
+              aria-label="Сменить город"
+            >
+              <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-[#818C99]">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span>Ваш город</span>
+              </div>
+              <span className="block truncate text-lg font-bold leading-tight text-[#2C2D2E]">{city}</span>
             </div>
-            <span className="block truncate text-lg font-bold leading-tight text-[#2C2D2E]">{city}</span>
           </div>
 
           <div className="flex shrink-0 rounded-xl bg-[#EBEDF0] p-1">
@@ -214,7 +226,13 @@ function CityMapView({
 }) {
   const cityCoords = APP_CITY_COORDS[city]
   const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 50), [cityCoords])
-  const mapOptions = useMemo(() => ({ suppressMapOpenBlock: true }), [])
+  const mapOptions = useMemo(
+    () => ({
+      suppressMapOpenBlock: true,
+      suppressObsoleteBrowserNotifier: true,
+    }),
+    []
+  )
   const [isYandexReady, setIsYandexReady] = useState(false)
   const yandexReadyRef = useRef(false)
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
@@ -330,32 +348,34 @@ function CityMapView({
         )}
       </div>
       {isVkReady ? (
-        <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa", lang: "ru_RU" }}>
-          <YMap
-            key={city}
-            instanceRef={(inst) => {
-              mapInstanceRef.current = (inst as { getCenter: () => number[] } | null) ?? null
-              if (inst && !yandexReadyRef.current) {
-                yandexReadyRef.current = true
-                setIsYandexReady(true)
-              }
-            }}
-            defaultState={{ center: cityCoords, zoom: 14 }}
-            className="w-full h-full"
-            options={mapOptions}
-          >
-            {mapMarkers.markers.map((marker) => (
-              <DriverPlacemark
-                key={marker.key}
-                driver={marker.driver}
-                isPersistent={marker.persistent}
-                createdAt={marker.createdAt}
-                rideType={marker.rideType}
-                onClick={() => setSelectedDriver(marker.driver)}
-              />
-            ))}
-          </YMap>
-        </YMaps>
+        <div className="poputi-yandex-map h-full w-full">
+          <YMaps query={{ apikey: "77552578-1483-4cc6-8510-a0a7f7f340aa", lang: "ru_RU" }}>
+            <YMap
+              key={city}
+              instanceRef={(inst) => {
+                mapInstanceRef.current = (inst as { getCenter: () => number[] } | null) ?? null
+                if (inst && !yandexReadyRef.current) {
+                  yandexReadyRef.current = true
+                  setIsYandexReady(true)
+                }
+              }}
+              defaultState={{ center: cityCoords, zoom: 14 }}
+              className="h-full w-full"
+              options={mapOptions}
+            >
+              {mapMarkers.markers.map((marker) => (
+                <DriverPlacemark
+                  key={marker.key}
+                  driver={marker.driver}
+                  isPersistent={marker.persistent}
+                  createdAt={marker.createdAt}
+                  rideType={marker.rideType}
+                  onClick={() => setSelectedDriver(marker.driver)}
+                />
+              ))}
+            </YMap>
+          </YMaps>
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-[#EBEDF0] text-[#818C99]">
           Инициализация VK Mini App...

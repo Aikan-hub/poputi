@@ -156,3 +156,13 @@
     background: #d3d9de;
   }
 }
+
+.poputi-yandex-map [class*="copyright"],
+.poputi-yandex-map [class*="map-copyrights"],
+.poputi-yandex-map a[href*="yandex.ru/maps"],
+.poputi-yandex-map a[href*="yandex.com/maps"],
+.poputi-yandex-map a[href*="maps.yandex"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
