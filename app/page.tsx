@@ -793,6 +793,7 @@ export default function PoputiApp() {
                 onRideStatusChanged={fetchRides}
                 intercityAddRequestOpen={intercityAddRequestOpen}
                 setIntercityAddRequestOpen={setIntercityAddRequestOpen}
+                ridesError={ridesError}
               />
             )}
             {activeTab === "chats" && (
@@ -910,6 +911,7 @@ function MapScreen({
   onRideStatusChanged,
   intercityAddRequestOpen,
   setIntercityAddRequestOpen,
+  ridesError,
 }: {
   city: AppCity
   isVkReady: boolean
@@ -942,6 +944,7 @@ function MapScreen({
   onRideStatusChanged: () => void
   intercityAddRequestOpen: boolean
   setIntercityAddRequestOpen: (v: boolean) => void
+  ridesError: string | null
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -997,6 +1000,7 @@ function MapScreen({
           onRideAdded={onRideAdded}
           userRole={userRole}
           onRideDeleted={onRideDeleted}
+          ridesError={ridesError}
         />
       ) : (
         <IntercityFeed
@@ -1036,6 +1040,7 @@ function CityMapView({
   onRideAdded,
   userRole,
   onRideDeleted,
+  ridesError,
 }: {
   city: AppCity
   isVkReady: boolean
@@ -1063,6 +1068,7 @@ function CityMapView({
   onRideAdded: () => void
   userRole: string
   onRideDeleted: () => void
+  ridesError: string | null
 }) {
   const cityCoords = APP_CITY_COORDS[city]
   const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 50), [cityCoords])
