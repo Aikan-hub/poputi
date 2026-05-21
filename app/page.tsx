@@ -313,6 +313,7 @@ export default function PoputiApp() {
   const [driverAccessRev, setDriverAccessRev] = useState(0)
   const [intercityManageRide, setIntercityManageRide] = useState<SupabaseRide | null>(null)
   const [intercitySeatBookRide, setIntercitySeatBookRide] = useState<SupabaseRide | null>(null)
+  const [ridesError, setRidesError] = useState<string | null>(null)
   const [vkMsgsAllowed, setVkMsgsAllowed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false
     return window.localStorage.getItem(VK_MSGS_ALLOWED_KEY) === "1"
@@ -388,8 +389,10 @@ export default function PoputiApp() {
       .order("created_at", { ascending: false })
     if (error) {
       console.warn("fetchRides error", error)
+      setRidesError(error.message || "fetchRides error")
       return
     }
+    setRidesError(null)
     setRides(data ?? [])
   }, [selectedCity])
 
@@ -1152,7 +1155,25 @@ function CityMapView({
     }[]
 
     return { markers, counters }
-  }, [rides, city])
+  }, [rides, city, vkUser])
+
+  useEffect(() => {
+    if (mapMarkers.markers.length === 0) {
+      console.debug("mapMarkers empty", mapMarkers.counters, rides.slice(0, 3))
+    } else {
+      console.debug(
+        "mapMarkers sample",
+        mapMarkers.markers.slice(0, 3).map((m) => ({
+          id: m.driver.id,
+          coords: m.driver.coords,
+          city: m.driver.activeRide?.city,
+          type: m.driver.rideType,
+          status: m.driver.rideStatus,
+          avatar: m.driver.activeRide?.avatar ?? m.driver.driverPhotoUrl,
+        }))
+      )
+    }
+  }, [mapMarkers, rides])
 
   useEffect(() => {
     yandexReadyRef.current = false
@@ -1179,6 +1200,15 @@ function CityMapView({
         <div className="text-[11px] text-[#818C99]">
           total {mapMarkers.counters.total} · city {mapMarkers.counters.cityMatched} · coords {mapMarkers.counters.withCoords}
         </div>
+        {ridesError && (
+          <div className="text-[11px] text-[#E64646]">Ошибка загрузки: {ridesError}</div>
+        )}
+        {mapMarkers.markers[0] && (
+          <div className="text-[11px] text-[#4BB34B]">
+            sample: {mapMarkers.markers[0].driver.coords.join(", ")} · {mapMarkers.markers[0].driver.rideType} ·{" "}
+            {mapMarkers.markers[0].driver.rideStatus} · city {mapMarkers.markers[0].driver.activeRide?.city || "—"}
+          </div>
+        )}
       </div>
       {/* Yandex Map */}
       {isVkReady ? (
