@@ -126,6 +126,33 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
     @apply bg-background text-foreground;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .safe-area-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #d3d9de transparent;
+  }
+
+  .app-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .app-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #d3d9de;
   }
 }

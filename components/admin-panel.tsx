@@ -300,16 +300,16 @@ export function AdminPanel({
   }
 
   const shellClass = embedded
-    ? "h-full min-h-0 flex flex-col bg-slate-950 text-slate-100 overflow-hidden"
-    : "min-h-screen bg-slate-950 text-slate-100"
+    ? "h-full min-h-0 flex flex-col bg-[#EBEDF0] text-[#2C2D2E] overflow-hidden"
+    : "min-h-screen bg-[#EBEDF0] text-[#2C2D2E]"
 
   const loginShellClass = embedded
-    ? "h-full min-h-0 flex flex-col items-center justify-center px-4 bg-slate-950 text-slate-100"
-    : "min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-4"
+    ? "h-full min-h-0 flex flex-col items-center justify-center px-4 bg-[#EBEDF0] text-[#2C2D2E]"
+    : "min-h-screen bg-[#EBEDF0] text-[#2C2D2E] flex flex-col items-center justify-center px-4"
 
   if (!mounted) {
     return (
-      <div className={embedded ? "h-full flex items-center justify-center text-slate-500 bg-slate-950" : "min-h-screen bg-slate-950 flex items-center justify-center text-slate-500"}>
+      <div className={embedded ? "h-full flex items-center justify-center text-[#818C99] bg-[#EBEDF0]" : "min-h-screen bg-[#EBEDF0] flex items-center justify-center text-[#818C99]"}>
         Загрузка…
       </div>
     )
@@ -318,12 +318,14 @@ export function AdminPanel({
   if (!isAuthorized) {
     return (
       <div className={loginShellClass}>
-        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl">
+        <div className="w-full max-w-md rounded-2xl border border-[#E1E3E6] bg-white p-8 shadow-xl">
           <div className="mb-6 flex items-center gap-3">
-            <Shield className="h-10 w-10 text-amber-500" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+              <Shield className="h-7 w-7" />
+            </div>
             <div>
-              <h1 className="text-xl font-bold">Попути — Админ</h1>
-              <p className="text-sm text-slate-500">Авторизация</p>
+              <h1 className="text-xl font-bold text-[#2C2D2E]">Попути — Админ</h1>
+              <p className="text-sm text-[#818C99]">Авторизация</p>
             </div>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -331,11 +333,11 @@ export function AdminPanel({
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="bg-slate-950 border-slate-800"
+              className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] placeholder:text-[#818C99] focus-visible:ring-[#2787F5]"
               placeholder="Пароль"
             />
-            {loginError && <p className="text-sm text-red-400">{loginError}</p>}
-            <Button type="submit" className="w-full bg-amber-500 text-slate-950 hover:bg-amber-400 font-bold">
+            {loginError && <p className="text-sm text-[#E64646]">{loginError}</p>}
+            <Button type="submit" className="w-full bg-[#2787F5] font-bold text-white hover:bg-[#1F6AD8]">
               Войти
             </Button>
           </form>
@@ -346,53 +348,53 @@ export function AdminPanel({
 
   return (
     <div className={shellClass}>
-      <header className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-3 sm:px-6">
+      <header className="shrink-0 border-b border-[#D3D9DE]/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
         <div className={embedded ? "flex items-center justify-between gap-2" : "mx-auto flex max-w-6xl items-center justify-between"}>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             {embedded && onBackToMap && (
-              <Button type="button" variant="outline" size="sm" onClick={onBackToMap} className="shrink-0 border-slate-700 bg-slate-900 text-slate-100">
+              <Button type="button" variant="outline" size="sm" onClick={onBackToMap} className="shrink-0 border-[#D3D9DE] bg-white text-[#2C2D2E] hover:bg-[#F2F3F5]">
                 <ArrowLeft className="mr-1 h-4 w-4" />
                 <MapIcon className="mr-1 hidden h-4 w-4 sm:inline" />
                 <span className="hidden sm:inline">Назад на карту</span>
                 <span className="sm:hidden">Карта</span>
               </Button>
             )}
-            <Shield className="h-6 w-6 shrink-0 text-amber-400" />
-            <h1 className="truncate text-lg font-bold">Центр управления</h1>
+            <Shield className="h-6 w-6 shrink-0 text-[#2787F5]" />
+            <h1 className="truncate text-lg font-bold text-[#2C2D2E]">Центр управления</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="shrink-0 text-slate-400">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="shrink-0 text-[#818C99] hover:bg-[#F2F3F5] hover:text-[#2C2D2E]">
             <LogOut className="mr-2 h-4 w-4" /> Выход
           </Button>
         </div>
       </header>
 
-      <main className={embedded ? "min-h-0 flex-1 overflow-y-auto p-4 space-y-6" : "mx-auto max-w-6xl p-4 sm:p-6 space-y-6"}>
+      <main className={embedded ? "app-scrollbar min-h-0 flex-1 overflow-y-auto p-4 space-y-5" : "mx-auto max-w-6xl p-4 sm:p-6 space-y-5"}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="border-[#E1E3E6] bg-white text-[#2C2D2E] shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-400">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#818C99]">
                 <Activity className="h-4 w-4" /> Активные поездки
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-400">{activeRidesCount}</div>
+              <div className="text-4xl font-bold text-[#00BFA5]">{activeRidesCount}</div>
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="border-[#E1E3E6] bg-white text-[#2C2D2E] shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-400">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#818C99]">
                 <Shield className="h-4 w-4" /> Пользователи
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-amber-400">{registeredUsersCount}</div>
+              <div className="text-4xl font-bold text-[#2787F5]">{registeredUsersCount}</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
-          <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Заявки города</p>
-          <div className="flex w-full gap-0 rounded-full bg-slate-950 p-1" role="tablist" aria-label="Город в админке">
+        <div className="rounded-2xl border border-[#E1E3E6] bg-white p-3 shadow-sm">
+          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-[#818C99]">Заявки города</p>
+          <div className="flex w-full gap-0 rounded-xl bg-[#EBEDF0] p-1" role="tablist" aria-label="Город в админке">
             {APP_CITIES.map((c) => (
               <button
                 key={c}
@@ -401,10 +403,10 @@ export function AdminPanel({
                 aria-selected={adminCity === c}
                 onClick={() => setAdminCity(c)}
                 className={cn(
-                  "flex-1 rounded-full py-2.5 px-3 text-center text-sm font-semibold transition-all",
+                  "flex-1 rounded-lg py-2.5 px-3 text-center text-sm font-semibold transition-all",
                   adminCity === c
-                    ? "bg-amber-500 text-slate-950 shadow-md"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-[#2787F5] text-white shadow-sm"
+                    : "text-[#818C99] active:bg-white/60"
                 )}
               >
                 {c}
@@ -414,64 +416,68 @@ export function AdminPanel({
         </div>
 
         <Tabs defaultValue="rides">
-          <TabsList className="bg-slate-900 border-slate-800">
-            <TabsTrigger value="rides">Список заявок</TabsTrigger>
-            <TabsTrigger value="bans">Черный список</TabsTrigger>
+          <TabsList className="bg-[#DDE3EA] p-1 text-[#818C99]">
+            <TabsTrigger value="rides" className="data-[state=active]:bg-white data-[state=active]:text-[#2C2D2E]">
+              Список заявок
+            </TabsTrigger>
+            <TabsTrigger value="bans" className="data-[state=active]:bg-white data-[state=active]:text-[#2C2D2E]">
+              Черный список
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="rides" className="mt-4 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <Button onClick={() => void fetchRides()} disabled={loading} variant="outline" size="sm">
+              <Button onClick={() => void fetchRides()} disabled={loading} variant="outline" size="sm" className="border-[#D3D9DE] bg-white text-[#2C2D2E] hover:bg-[#F2F3F5] disabled:text-[#AEB7C2]">
                 <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Обновить
               </Button>
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={handleClearOldRides} disabled={clearingOld}>
-                  <Trash2 className="mr-2 h-4 w-4 text-orange-400" /> Старые (Вчера)
+                <Button variant="secondary" size="sm" onClick={handleClearOldRides} disabled={clearingOld} className="bg-white text-[#2C2D2E] hover:bg-[#F2F3F5]">
+                  <Trash2 className="mr-2 h-4 w-4 text-[#FF9500]" /> Старые (Вчера)
                 </Button>
-                <Button variant="secondary" size="sm" onClick={handleClearExpiredIntercity} disabled={clearingIntercity}>
-                  <Trash2 className="mr-2 h-4 w-4 text-red-400" /> Межгород (&gt; 3ч)
+                <Button variant="secondary" size="sm" onClick={handleClearExpiredIntercity} disabled={clearingIntercity} className="bg-white text-[#2C2D2E] hover:bg-[#F2F3F5]">
+                  <Trash2 className="mr-2 h-4 w-4 text-[#E64646]" /> Межгород (&gt; 3ч)
                 </Button>
               </div>
             </div>
 
-            <Card className="overflow-hidden border-slate-800 bg-slate-900">
+            <Card className="overflow-hidden border-[#E1E3E6] bg-white shadow-sm">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800">
-                    <TableHead>ID</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>Город</TableHead>
-                    <TableHead>Маршрут</TableHead>
-                    <TableHead>Цена</TableHead>
-                    <TableHead className="text-right">Действия</TableHead>
+                  <TableRow className="border-[#E1E3E6] bg-[#F7F8FA] hover:bg-[#F7F8FA]">
+                    <TableHead className="text-[#818C99]">ID</TableHead>
+                    <TableHead className="text-[#818C99]">Тип</TableHead>
+                    <TableHead className="text-[#818C99]">Город</TableHead>
+                    <TableHead className="text-[#818C99]">Маршрут</TableHead>
+                    <TableHead className="text-[#818C99]">Цена</TableHead>
+                    <TableHead className="text-right text-[#818C99]">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rides.map((ride) => (
-                    <TableRow key={ride.id} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell className="font-mono text-xs text-slate-500">{ride.id}</TableCell>
+                    <TableRow key={ride.id} className="border-[#E1E3E6] hover:bg-[#F7F8FA]">
+                      <TableCell className="font-mono text-xs text-[#818C99]">{ride.id}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="border-[#D3D9DE] bg-white text-[10px] text-[#2C2D2E]">
                           {ride.type}
                           {isPersistentRideType(ride.type) ? " · ∞" : ""}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-slate-300">{ride.city?.trim() || "—"}</TableCell>
+                      <TableCell className="font-medium text-[#2C2D2E]">{ride.city?.trim() || "—"}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{(ride.from_location || "—") + " → " + (ride.to_location || "—")}</div>
-                        <div className="text-xs text-slate-500">{ride.name}</div>
+                        <div className="font-semibold text-[#2C2D2E]">{(ride.from_location || "—") + " → " + (ride.to_location || "—")}</div>
+                        <div className="text-xs text-[#818C99]">{ride.name}</div>
                       </TableCell>
-                      <TableCell className="text-emerald-400">{ride.price ? `${ride.price}₽` : "—"}</TableCell>
+                      <TableCell className="font-bold text-[#00BFA5]">{ride.price ? `${ride.price}₽` : "—"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(ride)}>
-                            <Pencil className="h-4 w-4 text-blue-400" />
+                            <Pencil className="h-4 w-4 text-[#2787F5]" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openBan(ride)} disabled={!ride.vk_id}>
-                            <Ban className="h-4 w-4 text-amber-500" />
+                            <Ban className="h-4 w-4 text-[#FF9500]" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteOne(ride.id)} disabled={deletingId === ride.id}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-[#E64646]" />
                           </Button>
                         </div>
                       </TableCell>
@@ -483,29 +489,29 @@ export function AdminPanel({
           </TabsContent>
 
           <TabsContent value="bans" className="mt-4">
-            <Card className="overflow-hidden border-slate-800 bg-slate-900">
+            <Card className="overflow-hidden border-[#E1E3E6] bg-white shadow-sm">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800">
-                    <TableHead>VK ID</TableHead>
-                    <TableHead>Имя</TableHead>
-                    <TableHead>Причина</TableHead>
-                    <TableHead className="text-right">Действие</TableHead>
+                  <TableRow className="border-[#E1E3E6] bg-[#F7F8FA] hover:bg-[#F7F8FA]">
+                    <TableHead className="text-[#818C99]">VK ID</TableHead>
+                    <TableHead className="text-[#818C99]">Имя</TableHead>
+                    <TableHead className="text-[#818C99]">Причина</TableHead>
+                    <TableHead className="text-right text-[#818C99]">Действие</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {bannedUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="py-8 text-center text-slate-500">
+                      <TableCell colSpan={4} className="py-8 text-center text-[#818C99]">
                         Список пуст
                       </TableCell>
                     </TableRow>
                   ) : (
                     bannedUsers.map((b) => (
-                      <TableRow key={b.vk_id} className="border-slate-800">
-                        <TableCell className="font-mono text-xs">{b.vk_id}</TableCell>
-                        <TableCell>{b.display_name}</TableCell>
-                        <TableCell className="text-slate-500">{b.reason || "—"}</TableCell>
+                      <TableRow key={b.vk_id} className="border-[#E1E3E6]">
+                        <TableCell className="font-mono text-xs text-[#818C99]">{b.vk_id}</TableCell>
+                        <TableCell className="font-medium text-[#2C2D2E]">{b.display_name}</TableCell>
+                        <TableCell className="text-[#818C99]">{b.reason || "—"}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" onClick={() => unban(b.vk_id)}>
                             Разбанить
@@ -522,27 +528,27 @@ export function AdminPanel({
       </main>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100">
+        <DialogContent className="border-[#E1E3E6] bg-white text-[#2C2D2E]">
           <DialogHeader>
             <DialogTitle>Редактирование</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Откуда</Label>
-              <Input value={editFrom} onChange={(e) => setEditFrom(e.target.value)} className="border-slate-800 bg-slate-900" />
+              <Input value={editFrom} onChange={(e) => setEditFrom(e.target.value)} className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]" />
             </div>
             <div className="space-y-2">
               <Label>Куда</Label>
-              <Input value={editTo} onChange={(e) => setEditTo(e.target.value)} className="border-slate-800 bg-slate-900" />
+              <Input value={editTo} onChange={(e) => setEditTo(e.target.value)} className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]" />
             </div>
             <div className="space-y-2">
               <Label>Цена</Label>
-              <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="border-slate-800 bg-slate-900" />
+              <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]" />
             </div>
             <div className="space-y-2">
               <Label>Тип</Label>
               <Select value={editType} onValueChange={setEditType}>
-                <SelectTrigger className="border-slate-800 bg-slate-900">
+                <SelectTrigger className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus:ring-[#2787F5]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -556,7 +562,7 @@ export function AdminPanel({
             <div className="space-y-2">
               <Label>Город</Label>
               <Select value={editCity} onValueChange={(v) => setEditCity(v as AppCity)}>
-                <SelectTrigger className="border-slate-800 bg-slate-900">
+                <SelectTrigger className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus:ring-[#2787F5]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -573,7 +579,7 @@ export function AdminPanel({
             <Button variant="outline" onClick={() => setEditOpen(false)}>
               Отмена
             </Button>
-            <Button onClick={saveEdit} disabled={savingEdit}>
+            <Button onClick={saveEdit} disabled={savingEdit} className="bg-[#2787F5] text-white hover:bg-[#1F6AD8]">
               {savingEdit ? "Сохранение..." : "Сохранить"}
             </Button>
           </DialogFooter>
@@ -581,18 +587,18 @@ export function AdminPanel({
       </Dialog>
 
       <Dialog open={banOpen} onOpenChange={setBanOpen}>
-        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100">
+        <DialogContent className="border-[#E1E3E6] bg-white text-[#2C2D2E]">
           <DialogHeader>
             <DialogTitle>Блокировка</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>VK ID</Label>
-              <Input value={banVkId} readOnly className="border-slate-800 bg-slate-900 opacity-50" />
+              <Input value={banVkId} readOnly className="border-transparent bg-[#F2F3F5] text-[#818C99]" />
             </div>
             <div className="space-y-2">
               <Label>Причина</Label>
-              <Input value={banReason} onChange={(e) => setBanReason(e.target.value)} className="border-slate-800 bg-slate-900" placeholder="Нарушение правил..." />
+              <Input value={banReason} onChange={(e) => setBanReason(e.target.value)} className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]" placeholder="Нарушение правил..." />
             </div>
           </div>
           <DialogFooter>
