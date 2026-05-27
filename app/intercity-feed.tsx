@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { Plus, Clock, User, Zap, Trash2, Crown, Route, CarFront } from "lucide-react"
+import { Plus, Clock, User, Trash2, Crown, Route, CarFront, CalendarClock } from "lucide-react"
+import { matchesCity, formatDepartAt } from "./helpers"
 import { isRideWithinActiveWindow } from "@/lib/rides"
 import { isActiveStatus, type RideStatus } from "@/lib/ride-status"
 import { isLegendLevel } from "@/lib/user-level"
@@ -48,10 +49,11 @@ export function IntercityFeed({
     () =>
       rides.filter((r) => {
         if ((r.type || "").trim() === "City") return false
+        if (!matchesCity(r.city, selectedCity)) return false
         if (!r.from_location || !r.to_location) return false
         return isRideWithinActiveWindow(r.created_at, r.type)
       }),
-    [rides]
+    [rides, selectedCity]
   )
 
   const [legendByVk, setLegendByVk] = useState<Record<string, boolean>>({})
@@ -132,16 +134,16 @@ export function IntercityFeed({
   }, [intercityRides])
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-[#EBEDF0]">
+    <div className="relative flex-1 overflow-hidden bg-gray-100">
       <div className="app-scrollbar h-full space-y-3 overflow-y-auto p-4 pb-24">
         {allRides.length === 0 ? (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-2xl border border-dashed border-[#D3D9DE] bg-white/80 px-6 py-10 text-center">
+          <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/80 px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
               <Route className="h-7 w-7" />
             </div>
-            <h2 className="mt-4 text-lg font-bold text-[#2C2D2E]">Пока нет поездок</h2>
-            <p className="mt-1 text-sm leading-relaxed text-[#818C99]">
-              Создайте первую заявку, и она появится в ленте межгорода.
+            <h2 className="mt-4 text-lg font-bold text-gray-900">Пока нет поездок</h2>
+            <p className="mt-1 text-sm leading-relaxed text-gray-500">
+              Создайте заявку кнопкой «+» — маршрут из города {selectedCity}.
             </p>
           </div>
         ) : (
@@ -161,7 +163,7 @@ export function IntercityFeed({
       <button
         type="button"
         onClick={() => setIntercityAddRequestOpen(true)}
-        className="absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/25 ring-4 ring-white/90 transition-transform active:scale-95"
+        className="absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/30 ring-4 ring-white/90 transition-transform active:scale-95"
         aria-label="Новая заявка межгород"
       >
         <Plus className="h-7 w-7" />
@@ -204,8 +206,8 @@ function RideCard({
   onOpenDriverManage: (ride: SupabaseRide) => void
   onOpenSeatBook: (ride: SupabaseRide) => void
 }) {
-  const [isBoosted, setIsBoosted] = useState(ride.boosted)
   const [isDeleting, setIsDeleting] = useState(false)
+  const departLabel = formatDepartAt(ride.rawRide?.depart_at)
 
   const viewerTag = vkUser ? vkIdTagFromNumericId(vkUser.id) : null
   const isOwner = viewerTag != null && ride.vkId === viewerTag
@@ -244,23 +246,22 @@ function RideCard({
   const canBookMock = !ride.rawRide && !!vkUser && avail > 0
   const bookDisabled = ride.rawRide ? !canBookDb : !canBookMock
 
-  const legendRing = ride.isLegendDriver
+  const cardRing = ride.isLegendDriver
     ? "ring-2 ring-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.35)]"
     : ""
-  const cardRing = isBoosted ? "ring-2 ring-[#FFC107]" : legendRing
   const bookLabel = isOwner ? "Это ваша заявка" : avail <= 0 ? "Мест нет" : "Забронировать место"
 
   return (
-    <div className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#E1E3E6]/70 ${cardRing}`}>
+    <div className={`rounded-2xl bg-white p-4 shadow-sm border border-gray-100 ${cardRing}`}>
       <div className="flex items-start gap-3">
         {ride.driverPhotoUrl ? (
           <img
             src={ride.driverPhotoUrl}
             alt=""
-            className="h-12 w-12 shrink-0 rounded-full object-cover shadow-sm ring-2 ring-[#2787F5]/20"
+            className="h-12 w-12 shrink-0 rounded-full object-cover bg-gray-100"
           />
         ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-sm font-semibold text-white shadow-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-sm font-semibold text-white">
             {ride.avatar}
           </div>
         )}
@@ -269,7 +270,7 @@ function RideCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <h3 className="truncate font-semibold text-[#2C2D2E]">{ride.driver}</h3>
+                <h3 className="truncate font-bold text-gray-900">{ride.driver}</h3>
                 {ride.isLegendDriver && (
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
                     <Crown className="h-3 w-3" />
@@ -277,15 +278,21 @@ function RideCard({
                   </span>
                 )}
               </div>
-              <div className="mt-2 rounded-xl bg-[#F7F8FA] px-3 py-2 text-sm font-medium text-[#2C2D2E]">
+              <div className="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900">
                 <div className="flex min-w-0 items-center gap-2">
                   <Route className="h-4 w-4 shrink-0 text-[#2787F5]" />
                   <span className="truncate">{ride.from || "Откуда"}</span>
-                  <span className="shrink-0 text-[#818C99]">→</span>
+                  <span className="shrink-0 text-gray-400">→</span>
                   <span className="truncate">{ride.to || "Куда"}</span>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#818C99]">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                {departLabel && (
+                  <div className="flex items-center gap-1 text-[#2787F5]">
+                    <CalendarClock className="h-4 w-4" />
+                    <span>{departLabel}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>{ride.time}</span>
@@ -304,29 +311,19 @@ function RideCard({
             </div>
 
             <div className="shrink-0 text-right">
-              <div className="text-xl font-bold text-[#2787F5]">{ride.price} ₽</div>
-              <div className="text-xs font-medium text-[#818C99]">за место</div>
+              <div className="text-xl font-bold text-gray-900">{ride.price} ₽</div>
+              <div className="text-xs font-medium text-gray-500">за место</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
-        {!isBoosted && (
-          <button
-            type="button"
-            onClick={() => setIsBoosted(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-[#FFF8E1] px-4 py-2.5 text-sm font-semibold text-[#B66D00] transition-colors active:bg-[#FFECB3]"
-          >
-            <Zap className="h-4 w-4" />
-            Boost
-          </button>
-        )}
+      <div className="mt-3">
         <button
           type="button"
           onClick={() => (ride.rawRide ? openSeatModal() : handleMockBook())}
           disabled={bookDisabled}
-          className="flex-1 rounded-xl bg-[#2787F5] py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:cursor-not-allowed disabled:bg-[#D3D9DE] disabled:text-[#818C99] disabled:shadow-none"
+          className="w-full rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-all hover:bg-[#1F6AD8] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
         >
           {bookLabel}
         </button>
@@ -339,7 +336,7 @@ function RideCard({
             const r = ride.rawRide
             if (r) onOpenDriverManage(r)
           }}
-          className="mt-2 w-full rounded-xl bg-[#F0F4FF] py-2.5 text-sm font-medium text-[#2787F5] transition-colors active:bg-[#E3EBFA]"
+          className="mt-2 w-full rounded-xl bg-[#F0F6FF] py-2.5 text-sm font-medium text-[#2787F5] transition-colors active:bg-[#F0F6FF]"
         >
           Управление поездкой
         </button>
@@ -350,7 +347,7 @@ function RideCard({
           type="button"
           onClick={() => void handleDelete()}
           disabled={isDeleting}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FAEBEB] py-2 text-sm font-medium text-[#E64646] transition-colors active:bg-[#F5D6D6] disabled:opacity-50"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors active:bg-red-100 disabled:opacity-50"
         >
           <Trash2 className="h-4 w-4" />
           {isDeleting ? "Удаление..." : "Удалить мою заявку"}

@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import bridge from "@vkontakte/vk-bridge"
+import { toast } from "sonner"
 import { Map, MessageCircle, Shield, User } from "lucide-react"
+import { assertNotBanned } from "@/lib/banned-users"
+import { loadIntroCityDone, loadStoredCity, storeSelectedCity } from "@/lib/app-storage"
 import { AdminPanel } from "@/components/admin-panel"
 import { CityIntroSplash } from "@/components/city-intro-splash"
 import { IntercityDriverManageModal } from "@/components/intercity-driver-manage-modal"
@@ -45,14 +48,13 @@ import { ChatsScreen, PublicProfileModal } from "./chats-screen"
 import { ProfileScreen } from "./profile-screen"
 
 export default function PoputiApp() {
+  /** false до первого useEffect — совпадает с SSR и убирает hydration mismatch из localStorage */
+  const [storageReady, setStorageReady] = useState(false)
   const [selectedCity, setSelectedCity] = useState<AppCity>(DEFAULT_APP_CITY)
   const [activeTab, setActiveTab] = useState<Tab>("map")
   const [mode, setMode] = useState<Mode>("city")
   const [selectedDriver, setSelectedDriver] = useState<DriverData | null>(null)
-  const [isDriverState, setIsDriverState] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(ROLE_KEY) === "driver"
-  })
+  const [isDriverState, setIsDriverState] = useState(false)
   const setIsDriver = useCallback((next: boolean) => {
     setIsDriverState(next)
     if (typeof window !== "undefined") {
@@ -75,14 +77,19 @@ export default function PoputiApp() {
   const [intercityManageRide, setIntercityManageRide] = useState<SupabaseRide | null>(null)
   const [intercitySeatBookRide, setIntercitySeatBookRide] = useState<SupabaseRide | null>(null)
   const [ridesError, setRidesError] = useState<string | null>(null)
-  const [vkMsgsAllowed, setVkMsgsAllowed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(VK_MSGS_ALLOWED_KEY) === "1"
-  })
-  const showAdminEntry = true
+  const [vkMsgsAllowed, setVkMsgsAllowed] = useState(false)
+  const showAdminEntry = useMemo(() => isAdminVkUser(vkUser?.id), [vkUser?.id])
 
   useEffect(() => {
-    if (typeof window === "undefined") return
+    const storedCity = loadStoredCity()
+    if (storedCity) setSelectedCity(storedCity)
+    setIntroCityDone(loadIntroCityDone())
+    setVkMsgsAllowed(window.localStorage.getItem(VK_MSGS_ALLOWED_KEY) === "1")
+    setStorageReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!storageReady) return
     const stored = window.localStorage.getItem(ROLE_KEY)
     const access = hasDriverAccess()
     if (!stored) {
@@ -94,7 +101,7 @@ export default function PoputiApp() {
       window.localStorage.setItem(ROLE_KEY, "passenger")
       setIsDriverState(false)
     }
-  }, [driverAccessRev])
+  }, [driverAccessRev, storageReady])
 
   useEffect(() => {
     if (!vkUser || !introCityDone) return
@@ -141,6 +148,7 @@ export default function PoputiApp() {
     const { data, error } = await supabase
       .from("rides")
       .select("*")
+      .eq("city", selectedCity)
       .order("created_at", { ascending: false })
     if (error) {
       console.warn("fetchRides error", error)
@@ -293,8 +301,13 @@ export default function PoputiApp() {
   const handleCityPickup = useCallback(
     async (ride: SupabaseRide): Promise<boolean> => {
       if (!vkUser) return false
-      if ((ride.type || "").trim() !== "City") return false
       const driverTag = vkIdTagFromNumericId(vkUser.id)
+      const banMsg = await assertNotBanned(supabase, driverTag)
+      if (banMsg) {
+        toast.error(banMsg)
+        return false
+      }
+      if ((ride.type || "").trim() !== "City") return false
       const ownerTag = (ride.vk_id || "").trim()
       if (!ownerTag || ownerTag === driverTag) return false
       const { data, error } = await supabase
@@ -340,6 +353,7 @@ export default function PoputiApp() {
         telegram: ride.telegram,
         messageIntro: intro,
       })
+      toast.success("Вы приняли заявку — открыт чат с пассажиром")
       return true
     },
     [vkUser, fetchRides, handleBooking]
@@ -348,8 +362,13 @@ export default function PoputiApp() {
   const handleDriverOffer = useCallback(
     async (ride: SupabaseRide, priceDelta: number): Promise<boolean> => {
       if (!vkUser) return false
-      if ((ride.type || "").trim() !== "City") return false
       const driverTag = vkIdTagFromNumericId(vkUser.id)
+      const banMsg = await assertNotBanned(supabase, driverTag)
+      if (banMsg) {
+        toast.error(banMsg)
+        return false
+      }
+      if ((ride.type || "").trim() !== "City") return false
       const passengerTag = (ride.vk_id || "").trim()
       if (!passengerTag || passengerTag === driverTag) return false
 
@@ -505,11 +524,16 @@ export default function PoputiApp() {
   )
 
   const handleIntercityReserve = useCallback(
-    async (ride: SupabaseRide): Promise<boolean> => {
-      if (!vkUser) return false
+    async (ride: SupabaseRide): Promise<{ ok: boolean; err?: string }> => {
+      if (!vkUser) return { ok: false, err: "auth" }
       const myTag = vkIdTagFromNumericId(vkUser.id)
+      const banMsg = await assertNotBanned(supabase, myTag)
+      if (banMsg) {
+        toast.error(banMsg)
+        return { ok: false, err: "banned" }
+      }
       const res = await rpcBookIntercitySeat(supabase, ride.id, myTag)
-      if (!res.ok) return false
+      if (!res.ok) return { ok: false, err: res.err }
       await fetchRides()
       const displayName = ride.name?.trim() || "Пользователь"
       const avatarLabel = getAvatarLabel(displayName, ride.avatar)
@@ -522,7 +546,8 @@ export default function PoputiApp() {
         telegram: ride.telegram,
         messageIntro: `Здравствуйте! Я забронировал место в поездке ${ride.from_location || "—"} → ${ride.to_location || "—"}.`,
       })
-      return true
+      toast.success("Место забронировано — открыт чат с водителем")
+      return { ok: true }
     },
     [vkUser, fetchRides, handleBooking]
   )
@@ -546,7 +571,7 @@ export default function PoputiApp() {
 
   if (activeScreen === "admin") {
     return (
-      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-[#EBEDF0] shadow-2xl ring-1 ring-black/5">
+      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5">
         <AdminPanel
           variant="embedded"
           initialAdminCity={selectedCity}
@@ -560,14 +585,21 @@ export default function PoputiApp() {
     )
   }
 
+  if (!storageReady) {
+    return (
+      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5" />
+    )
+  }
+
   return (
-    <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-[#EBEDF0] shadow-2xl ring-1 ring-black/5">
+    <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5">
       {!introCityDone ? (
         <CityIntroSplash
           isVkReady={isVkReady}
           selectedCity={selectedCity}
           onSelectCity={(c) => {
             setSelectedCity(c)
+            storeSelectedCity(c)
             setIntroCityDone(true)
           }}
         />
@@ -590,10 +622,11 @@ export default function PoputiApp() {
               viewerVkTag={vkIdTagFromNumericId(vkUser.id)}
               onClose={() => setIntercitySeatBookRide(null)}
               onConfirm={async () => {
-                const ok = await handleIntercityReserve(intercitySeatBookRide)
-                if (ok) setIntercitySeatBookRide(null)
-                return ok
+                const result = await handleIntercityReserve(intercitySeatBookRide)
+                if (result.ok) setIntercitySeatBookRide(null)
+                return result
               }}
+              onCancelled={fetchRides}
             />
           )}
 
@@ -611,7 +644,10 @@ export default function PoputiApp() {
                 setShowAddRequest={setShowAddRequest}
                 onBooking={handleBooking}
                 rides={rides}
-                onRideAdded={fetchRides}
+                onRideAdded={() => {
+                  void fetchRides()
+                  toast.success("Заявка опубликована")
+                }}
                 userRole={isDriver ? "Driver" : "Passenger"}
                 onRideDeleted={fetchRides}
                 onOpenIntercityManage={setIntercityManageRide}
@@ -626,6 +662,7 @@ export default function PoputiApp() {
                 intercityAddRequestOpen={intercityAddRequestOpen}
                 setIntercityAddRequestOpen={setIntercityAddRequestOpen}
                 ridesError={ridesError}
+                onRetryRides={() => void fetchRides()}
                 onBackToCitySelect={() => {
                   setIntroCityDone(false)
                   setSelectedDriver(null)
@@ -660,7 +697,7 @@ export default function PoputiApp() {
                 setIsDriver={setIsDriver}
                 vkUser={vkUser}
                 historyCity={selectedCity}
-                showAdminEntry={showAdminEntry || isAdminVkUser(vkUser?.id)}
+                showAdminEntry={showAdminEntry}
                 onOpenAdmin={() => setActiveScreen("admin")}
                 appendReviewChatMessage={appendReviewChatMessage}
                 onDriverPaymentVerified={() => setDriverAccessRev((v) => v + 1)}
@@ -668,7 +705,7 @@ export default function PoputiApp() {
             )}
           </div>
 
-          <nav className="safe-area-bottom flex items-center justify-around border-t border-[#D3D9DE]/80 bg-white/95 px-3 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] backdrop-blur">
+          <nav className="safe-area-bottom flex items-stretch justify-around border-t border-gray-100 bg-white px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
             <NavButton
               icon={<Map className="h-6 w-6" />}
               label="Карта"

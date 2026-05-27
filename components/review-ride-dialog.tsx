@@ -1,18 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Star, X } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+import { CheckCircle2, Send, Star, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-client"
 import { buildReviewChatMessage, submitRideReview } from "@/lib/review-actions"
@@ -34,15 +23,15 @@ export function ReviewRideDialog({
   targetDisplayName: string
   onSuccess: (chatMessage: string) => void
 }) {
-  const [rating, setRating] = useState(5)
-  const [hover, setHover] = useState<number | null>(null)
+  const [rating, setRating] = useState(0)
   const [comment, setComment] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const displayStars = hover ?? rating
+  if (!open) return null
 
   const handleSubmit = async () => {
+    if (rating === 0) return
     setSaving(true)
     setError(null)
     const res = await submitRideReview({
@@ -62,71 +51,64 @@ export function ReviewRideDialog({
     onSuccess(msg)
     onOpenChange(false)
     setComment("")
-    setRating(5)
-    setHover(null)
+    setRating(0)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="max-w-md gap-0 overflow-hidden border-0 bg-white p-0 text-[#2C2D2E] shadow-2xl sm:max-w-md">
-        <div className="relative bg-gradient-to-r from-[#2787F5] to-[#5BA3FF] px-6 pb-8 pt-6 text-white">
-          <DialogClose className="absolute right-4 top-4 rounded-lg p-1 text-white/90 transition-colors hover:bg-white/15 hover:text-white">
-            <X className="h-5 w-5" />
-            <span className="sr-only">Закрыть</span>
-          </DialogClose>
-          <DialogHeader className="space-y-1 pr-10 text-left">
-            <DialogTitle className="text-xl font-bold text-white">Оценить попутчика</DialogTitle>
-            <p className="text-sm text-white/90">
-              Поездка с <span className="font-semibold">{targetDisplayName}</span>
-            </p>
-          </DialogHeader>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+      <div className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="absolute right-4 top-4 rounded-full bg-gray-50 p-2 text-gray-400 transition-colors hover:text-gray-600"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+          <CheckCircle2 className="h-8 w-8" />
         </div>
-        <div className="space-y-4 px-6 py-5">
-          <div>
-            <p className="mb-3 text-sm font-medium text-[#2C2D2E]">Ваша оценка</p>
-            <div className="flex justify-center gap-1 sm:justify-start">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onMouseEnter={() => setHover(i)}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => setRating(i)}
-                  className="rounded-xl p-1.5 transition-transform hover:scale-110 active:scale-95"
-                  aria-label={`${i} из 5`}
-                >
-                  <Star
-                    className={cn(
-                      "h-10 w-10 transition-colors duration-150",
-                      i <= displayStars ? "fill-[#FFC107] text-[#FFC107] drop-shadow-sm" : "fill-none text-[#D3D9DE]"
-                    )}
-                    strokeWidth={1.5}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-medium text-[#2C2D2E]">Комментарий (необязательно)</p>
-            <Textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Как прошла поездка?"
-              className="min-h-[96px] resize-none rounded-xl border-[#E1E3E6] bg-[#F7F8FA] text-[#2C2D2E] focus-visible:ring-[#2787F5]"
-              maxLength={500}
-            />
-          </div>
-          {error && <p className="text-sm text-[#E64646]">{error}</p>}
+
+        <h2 className="mb-1 text-2xl font-bold text-gray-900">Поездка завершена</h2>
+        <p className="mb-6 text-sm text-gray-500">
+          Оцените {targetDisplayName}, чтобы мы знали, как всё прошло
+        </p>
+
+        <div className="mb-6 flex justify-center gap-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setRating(star)}
+              className={cn("p-1 transition-transform active:scale-75", rating >= star ? "text-yellow-400" : "text-gray-200")}
+              aria-label={`${star} из 5`}
+            >
+              <Star size={36} fill="currentColor" />
+            </button>
+          ))}
         </div>
-        <DialogFooter className="border-t border-[#E1E3E6] bg-[#F7F8FA] px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl">
-            Отмена
-          </Button>
-          <Button type="button" className="rounded-xl bg-[#2787F5] hover:bg-[#1F6AD8]" onClick={handleSubmit} disabled={saving}>
-            {saving ? "Отправка…" : "Оценить"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Напишите пару слов..."
+          className="mb-4 h-24 w-full resize-none rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2787F5]"
+          maxLength={500}
+        />
+
+        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+        <button
+          type="button"
+          onClick={() => void handleSubmit()}
+          disabled={rating === 0 || saving}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-4 font-semibold text-white transition-all hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400"
+        >
+          <Send className="h-[18px] w-[18px]" />
+          {saving ? "Отправка…" : "Отправить"}
+        </button>
+      </div>
+    </div>
   )
 }

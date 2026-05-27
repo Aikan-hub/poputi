@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import { ChevronLeft, MessageCircle, Send, Trash2, UserRound } from "lucide-react"
+import { Car, ChevronLeft, MessageCircle, Send, Star, Trash2, UserRound } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { poputi } from "@/components/poputi/ui"
 import { appendThreadMessage, fetchThreadMessages } from "@/lib/chats-db"
 import { supabase } from "@/lib/supabase-client"
 import type { ChatData, ChatMessageMetadata, RideOfferMetadata, VkUserProfile } from "./types"
@@ -47,7 +50,7 @@ export function ChatsScreen({
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
           <MessageCircle className="h-7 w-7" />
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-[#818C99]">Войдите через VK, чтобы пользоваться чатами.</p>
+        <p className="mt-4 text-sm leading-relaxed text-gray-500">Войдите через VK, чтобы пользоваться чатами.</p>
         <button type="button" className="mt-4 rounded-xl bg-[#F0F6FF] px-4 py-2 text-sm font-semibold text-[#2787F5]" onClick={() => setSelectedChat(null)}>
           Назад к списку
         </button>
@@ -56,29 +59,35 @@ export function ChatsScreen({
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#F7F8FA]">
-      <header className="border-b border-[#E1E3E6]/80 bg-white px-4 py-4 shadow-sm">
-        <h1 className="text-2xl font-bold leading-tight text-[#2C2D2E]">Чаты</h1>
-        <p className="mt-0.5 text-sm text-[#818C99]">Диалоги по поездкам и отзывам</p>
+    <div className="flex h-full flex-col bg-gray-50">
+      <header className="border-b border-gray-100 bg-white px-6 py-4 shadow-sm">
+        <h1 className="text-lg font-bold leading-tight text-gray-900">Отклики водителей</h1>
+        <p className="mt-0.5 text-xs font-medium text-gray-500">Диалоги по поездкам</p>
       </header>
 
-      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-4 space-y-3">
         {chatsLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white py-16 text-[#818C99] shadow-sm ring-1 ring-[#E1E3E6]/70">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white py-16 text-gray-400 shadow-sm border border-gray-100">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#2787F5] border-t-transparent" />
             <span className="text-sm">Загрузка чатов…</span>
           </div>
         )}
         {!chatsLoading && !vkUser && (
-          <div className="rounded-2xl bg-white px-4 py-12 text-center shadow-sm ring-1 ring-[#E1E3E6]/70">
-            <UserRound className="mx-auto h-9 w-9 text-[#AEB7C2]" />
-            <p className="mt-3 text-sm text-[#818C99]">Войдите через VK Mini App, чтобы видеть свои диалоги.</p>
+          <div className="rounded-2xl bg-white px-4 py-12 text-center shadow-sm border border-gray-100">
+            <UserRound className="mx-auto h-9 w-9 text-gray-300" />
+            <p className="mt-3 text-sm text-gray-500">Войдите через VK Mini App, чтобы видеть свои диалоги.</p>
           </div>
         )}
         {!chatsLoading && vkUser && chats.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[#D3D9DE] bg-white px-4 py-12 text-center">
-            <MessageCircle className="mx-auto h-10 w-10 text-[#AEB7C2]" />
-            <p className="mt-3 text-sm leading-relaxed text-[#818C99]">
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="flex justify-center items-center gap-2 text-sm text-gray-400 font-medium">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2787F5] opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-[#2787F5]" />
+              </span>
+              Ищем ещё варианты...
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-gray-500 text-center px-6">
               Пока нет диалогов. Они появятся после бронирования поездки или оценки попутчика.
             </p>
           </div>
@@ -86,11 +95,11 @@ export function ChatsScreen({
         {!chatsLoading &&
           vkUser &&
           chats.map((chat) => (
-            <div key={chat.id} className="mb-2 flex items-stretch overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#E1E3E6]/70">
+            <div key={chat.id} className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
               <button
                 type="button"
                 onClick={() => setSelectedChat(chat)}
-                className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors active:bg-[#EBEDF0]"
+                className="flex w-full min-w-0 items-center gap-3 text-left"
               >
                 <div
                   className="relative shrink-0 cursor-pointer"
@@ -100,34 +109,50 @@ export function ChatsScreen({
                   }}
                 >
                   {chat.avatarUrl ? (
-                    <img src={chat.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-[#2787F5]/20" />
+                    <img src={chat.avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover bg-gray-100" />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-base font-semibold text-white shadow-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2787F5] text-base font-semibold text-white">
                       {chat.avatar}
                     </div>
                   )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate font-bold text-gray-900">{chat.name}</h3>
+                    {chat.rating > 0 && (
+                      <div className="flex items-center rounded-md bg-yellow-50 px-1.5 py-0.5 text-xs font-bold text-yellow-500">
+                        <Star size={10} className="mr-0.5" fill="currentColor" /> {chat.rating.toFixed(1)}
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-gray-500">{chat.lastMessage}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-xs text-gray-500">{chat.time}</span>
                   {chat.unread > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E64646] text-xs font-medium text-white">
+                    <span className="mt-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
                       {chat.unread}
                     </span>
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="truncate font-semibold text-[#2C2D2E]">{chat.name}</h3>
-                    <span className="shrink-0 text-xs text-[#818C99]">{chat.time}</span>
-                  </div>
-                  <p className="mt-0.5 truncate text-sm text-[#818C99]">{chat.lastMessage}</p>
-                </div>
               </button>
-              <button
-                type="button"
-                onClick={() => void onDeleteChat(chat.id)}
-                className="flex shrink-0 items-center justify-center px-3 text-[#AEB7C2] transition-colors active:bg-[#FAEBEB] active:text-[#E64646]"
-                aria-label="Удалить чат"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedChat(chat)}
+                  className="flex-1 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-md shadow-[#2787F5]/20 transition-all hover:bg-[#1F6AD8] active:scale-95"
+                >
+                  Открыть чат
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onDeleteChat(chat.id)}
+                  className="rounded-xl bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
+                  aria-label="Удалить чат"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
       </div>
@@ -228,32 +253,32 @@ function ChatView({
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#EBEDF0]">
-      <header className="flex items-center gap-3 border-b border-[#E1E3E6]/80 bg-white px-4 py-3 shadow-sm">
-        <button type="button" onClick={onBack} className="-ml-1 rounded-full p-1 text-[#2787F5] active:bg-[#F0F6FF]" aria-label="Назад">
-          <ChevronLeft className="h-6 w-6" />
+    <div className="flex h-full flex-col bg-gray-50">
+      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-gray-100 bg-white px-6 py-4 shadow-sm">
+        <button type="button" onClick={onBack} className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Назад">
+          <ChevronLeft className="h-6 w-6 text-gray-800" />
         </button>
         <button type="button" onClick={onOpenProfile} className="flex flex-1 items-center gap-3 text-left">
           {chat.avatarUrl ? (
-            <img src={chat.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover shadow-sm ring-2 ring-[#2787F5]/20" />
+            <img src={chat.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover bg-gray-100" />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2787F5] font-semibold text-white">
               {chat.avatar}
             </div>
           )}
           <div className="min-w-0">
-            <h2 className="truncate font-semibold text-[#2C2D2E]">{chat.name}</h2>
-            <p className="text-xs text-[#818C99]">Диалог в облаке</p>
+            <h2 className="text-lg font-bold leading-tight text-gray-900">{chat.name}</h2>
+            <p className="text-xs font-medium text-gray-500">Диалог по поездке</p>
           </div>
         </button>
       </header>
 
       <div className="app-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
         {loading && (
-          <p className="py-8 text-center text-sm text-[#818C99]">Загрузка сообщений…</p>
+          <p className="py-8 text-center text-sm text-gray-400">Загрузка сообщений…</p>
         )}
         {!loading && messages.length === 0 && (
-          <p className="py-8 text-center text-sm text-[#818C99]">Напишите первое сообщение.</p>
+          <p className="py-8 text-center text-sm text-gray-400">Напишите первое сообщение.</p>
         )}
         {!loading &&
           messages.map((msg) => (
@@ -268,7 +293,7 @@ function ChatView({
               ) : (
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                    msg.isMe ? "rounded-br-md bg-[#2787F5] text-white" : "rounded-bl-md bg-white text-[#2C2D2E] ring-1 ring-[#E1E3E6]/70"
+                    msg.isMe ? "rounded-br-md bg-[#2787F5] text-white" : "rounded-bl-md bg-white text-gray-900 ring-1 ring-gray-100"
                   }`}
                 >
                   {msg.text}
@@ -279,7 +304,7 @@ function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-[#E1E3E6] bg-white p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.04)]">
+      <div className="border-t border-gray-100 bg-white p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.04)]">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -290,13 +315,13 @@ function ChatView({
               if (e.key === "Enter") void handleSend()
             }}
             disabled={sending}
-            className="min-w-0 flex-1 rounded-full bg-[#F2F3F5] px-4 py-2.5 text-[#2C2D2E] placeholder-[#818C99] outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-2 focus:ring-[#2787F5] disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#2787F5] disabled:opacity-50"
           />
           <button
             type="button"
             onClick={() => void handleSend()}
             disabled={sending || !message.trim()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:bg-[#D3D9DE] disabled:text-[#818C99] disabled:shadow-none"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
           >
             <Send className="h-5 w-5" />
           </button>
@@ -325,45 +350,61 @@ function RideOfferCard({
   onReject: () => void
 }) {
   const decided = offer.status !== "pending"
+  const isCounter = (offer.priceDelta ?? 0) > 0
+  const isPrimary = !isCounter
+
   return (
-    <div className="w-full max-w-[92%] rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E1E3E6]/80">
-      <div className="flex items-center gap-3">
-        {offer.driverAvatarUrl ? (
-          <img src={offer.driverAvatarUrl} alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-[#2787F5]/20" />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2787F5] font-bold text-white">
-            {offer.driverName.slice(0, 1).toUpperCase()}
+    <div className="w-full max-w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          {offer.driverAvatarUrl ? (
+            <img src={offer.driverAvatarUrl} alt="" className="h-12 w-12 rounded-full bg-gray-100 object-cover" />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-600">
+              {offer.driverName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-gray-900">{offer.driverName}</h4>
+              <div className="flex items-center rounded-md bg-yellow-50 px-1.5 py-0.5 text-xs font-bold text-yellow-500">
+                <Star size={10} className="mr-0.5" fill="currentColor" /> {(offer.driverRating ?? 5).toFixed(1)}
+              </div>
+            </div>
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-gray-500">
+              <Car size={12} /> {offer.driverCar || "Авто"} · {offer.pickupEtaMin ?? 7} мин
+            </p>
           </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-bold text-[#2C2D2E]">{offer.driverName}</p>
-          <p className="text-xs text-[#818C99]">
-            {offer.driverCar || "Авто"} · ★ {(offer.driverRating ?? 5).toFixed(1)} · {offer.pickupEtaMin ?? 7} мин
-          </p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-[#00BFA5]">{offer.price} ₽</p>
-          <p className="text-xs text-[#818C99]">итого</p>
+          <p className={cn("text-xl font-bold", isCounter ? "text-orange-500" : "text-gray-900")}>{offer.price} ₽</p>
+          <p className="mt-0.5 text-xs font-medium text-gray-500">{offer.pickupEtaMin ?? 7} мин</p>
         </div>
       </div>
-      <div className="mt-3 rounded-xl bg-[#F7F8FA] px-3 py-2 text-sm font-medium text-[#2C2D2E]">
-        {(offer.from || "Откуда") + " → " + (offer.to || "Куда")}
-      </div>
       {decided ? (
-        <div className="mt-3 rounded-xl bg-[#F0F6FF] py-2 text-center text-sm font-semibold text-[#2787F5]">
+        <div className="rounded-xl bg-[#F0F6FF] py-2 text-center text-sm font-semibold text-[#2787F5]">
           {offer.status === "accepted" ? "Отклик принят" : "Отклик отклонён"}
         </div>
       ) : isPassenger ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button type="button" onClick={onReject} className="rounded-xl bg-[#FAEBEB] py-2.5 text-sm font-semibold text-[#E64646]">
-            Отказать
-          </button>
-          <button type="button" onClick={onAccept} className="rounded-xl bg-[#2787F5] py-2.5 text-sm font-semibold text-white">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onAccept}
+            className={cn(
+              "flex-1 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95",
+              isPrimary
+                ? "bg-[#2787F5] text-white shadow-md shadow-[#2787F5]/20 hover:bg-[#1F6AD8]"
+                : "bg-gray-900 text-white shadow-md shadow-gray-900/20 hover:bg-gray-800"
+            )}
+          >
             Согласиться
+          </button>
+          <button type="button" onClick={onReject} className={cn(poputi.btnGhost, "px-6")}>
+            Отказать
           </button>
         </div>
       ) : (
-        <div className="mt-3 rounded-xl bg-[#F7F8FA] py-2 text-center text-sm font-medium text-[#818C99]">
+        <div className="rounded-xl bg-gray-50 py-2 text-center text-sm font-medium text-gray-500">
           Ожидаем ответа пассажира
         </div>
       )}
@@ -373,59 +414,56 @@ function RideOfferCard({
 
 export function PublicProfileModal({ profile, onClose }: { profile: ChatData; onClose: () => void }) {
   return (
-    <div className="absolute inset-0 bg-black/50 flex items-end z-50" onClick={onClose}>
+    <div className="absolute inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
       <div
-        className="bg-white rounded-t-2xl w-full max-h-[80%] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4">
-          <div className="w-10 h-1 bg-[#D3D9DE] rounded-full mx-auto mb-4" />
-
-          <div className="flex items-center gap-4 mb-6">
-            {profile.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="" className="w-20 h-20 rounded-full object-cover shadow-lg ring-2 ring-[#2787F5]/20" />
-            ) : (
-              <div className="w-20 h-20 bg-[#2787F5] rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                {profile.avatar}
-              </div>
-            )}
-            <div>
-              <h2 className="text-xl font-bold text-[#2C2D2E]">{profile.name}</h2>
-              <div className="flex items-center gap-1 mt-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-lg ${star <= Math.round(profile.rating) ? "text-[#FFC107]" : "text-[#E1E3E6]"}`}>
-                    ★
-                  </span>
-                ))}
-                <span className="text-[#818C99] ml-1">{profile.rating}</span>
-              </div>
+        <div className="flex items-center gap-4 mb-6">
+          {profile.avatarUrl ? (
+            <img src={profile.avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover shadow-lg" />
+          ) : (
+            <div className="w-16 h-16 bg-[#2787F5] rounded-full flex items-center justify-center text-white font-bold text-2xl">
+              {profile.avatar}
+            </div>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">{profile.name}</h2>
+            <div className="flex items-center gap-1 mt-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span key={star} className={`text-lg ${star <= Math.round(profile.rating) ? "text-yellow-400" : "text-gray-200"}`}>
+                  ★
+                </span>
+              ))}
+              <span className="text-gray-500 ml-1">{profile.rating}</span>
             </div>
           </div>
-
-          <div className="bg-[#F7F8FA] rounded-2xl p-4 mb-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-[#2787F5]">{profile.trips}</div>
-                <div className="text-sm text-[#818C99]">поездок</div>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-[#4BB34B]">{profile.rating}</div>
-                <div className="text-sm text-[#818C99]">рейтинг</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-[#F7F8FA] p-4 text-center text-sm leading-relaxed text-[#818C99]">
-            Связаться можно только внутри приложения: откройте вкладку «Чаты» внизу экрана и выберите диалог с этим пользователем.
-          </div>
-
-          <button
-            onClick={onClose}
-            className="w-full mt-4 py-3 rounded-xl bg-[#EBEDF0] text-[#2C2D2E] font-medium active:bg-[#D3D9DE] transition-colors"
-          >
-            Закрыть
-          </button>
         </div>
+
+        <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-[#2787F5]">{profile.trips}</div>
+              <div className="text-sm text-gray-500">поездок</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{profile.rating}</div>
+              <div className="text-sm text-gray-500">рейтинг</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 p-4 text-center text-sm leading-relaxed text-gray-500">
+          Связаться можно только внутри приложения: откройте вкладку «Чаты» внизу экрана и выберите диалог с этим пользователем.
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full mt-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold transition-all hover:bg-gray-200 active:scale-95"
+        >
+          Закрыть
+        </button>
       </div>
     </div>
   )

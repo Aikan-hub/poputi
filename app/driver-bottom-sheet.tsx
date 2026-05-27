@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Car, Clock, MapPin, Navigation, Trash2 } from "lucide-react"
+import { Clock, Navigation, Trash2 } from "lucide-react"
 import { isPersistentRideType } from "@/lib/rides"
 import { openRideNavigator } from "@/lib/ride-flow"
 import {
@@ -14,6 +14,8 @@ import {
   canDriverComplete,
 } from "@/lib/ride-status"
 import { supabase } from "@/lib/supabase-client"
+import { BottomSheet, poputi } from "@/components/poputi/ui"
+import { cn } from "@/lib/utils"
 import type { DriverData, SupabaseRide } from "./types"
 
 export function DriverBottomSheet({
@@ -105,26 +107,88 @@ export function DriverBottomSheet({
     })
   }
 
-  return (
-    <div className="absolute inset-0 z-20 flex items-end" onClick={onClose}>
-      <div
-        className="max-h-[78vh] w-full overflow-hidden rounded-t-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="app-scrollbar max-h-[78vh] overflow-y-auto p-4 pb-5">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#D3D9DE]" />
+  const passengerPhoto =
+    driver.driverPhotoUrl ||
+    (driver.activeRide?.avatar?.startsWith("http") ? driver.activeRide.avatar : null)
 
+  if (canTakeCity) {
+    return (
+      <BottomSheet onClose={onClose} className="pb-12">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">{driver.price || 0} ₽</h3>
+            <div className="mt-1 flex items-center gap-4 text-sm font-medium text-gray-500">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> ~{driver.timer || 5} мин до вас
+              </span>
+              <span>по карте</span>
+            </div>
+          </div>
+          {passengerPhoto ? (
+            <img src={passengerPhoto} alt="" className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm" />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-600">
+              {String(driver.name || "?").slice(0, 1)}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-6 mt-4 rounded-xl bg-gray-50 p-4">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-800" />
+            <p className="truncate text-sm font-medium text-gray-900">{driver.fromLocation || "—"}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2787F5]" />
+            <p className="truncate text-sm font-medium text-gray-900">{driver.toLocation || "—"}</p>
+          </div>
+        </div>
+
+        {actionError && (
+          <p className="mb-3 rounded-xl bg-[#F0F6FF] px-3 py-2 text-center text-sm text-[#2787F5]">{actionError}</p>
+        )}
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void sendOffer(0)}
+            className={poputi.btnPrimary}
+          >
+            {busy === "offer" ? "Отправка…" : `Забрать за ${driver.price || 0} ₽`}
+          </button>
+          <div className="flex gap-2">
+            {[10, 30, 50].map((val) => (
+              <button
+                key={val}
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void sendOffer(val)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 transition-all hover:border-[#2787F5] hover:text-[#2787F5] active:bg-gray-50 disabled:opacity-50"
+              >
+                +{val} ₽
+              </button>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
+    )
+  }
+
+  return (
+    <BottomSheet onClose={onClose} maxHeight="78vh">
+      <div className="app-scrollbar max-h-[70vh] overflow-y-auto">
         <div className="mb-4 flex items-center gap-4">
-          {driver.driverPhotoUrl ? (
-            <img src={driver.driverPhotoUrl} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover shadow-sm ring-2 ring-[#2787F5]/20" />
+          {passengerPhoto ? (
+            <img src={passengerPhoto} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover shadow-sm ring-2 ring-[#2787F5]/20" />
           ) : (
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-xl font-bold text-white shadow-sm">
-              {driver.avatar}
+              {String(driver.avatar || "?").slice(0, 2)}
             </div>
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="truncate text-lg font-bold text-[#2C2D2E]">{driver.name}</h3>
+              <h3 className="truncate text-lg font-bold text-gray-900">{driver.name}</h3>
               {isCity && (
                 <span className="shrink-0 rounded-full bg-[#F0F6FF] px-2 py-1 text-xs font-semibold text-[#2787F5]">
                   {statusLabel[status]}
@@ -132,81 +196,27 @@ export function DriverBottomSheet({
               )}
             </div>
             {isCity && (driver.fromLocation || driver.toLocation) && (
-              <div className="mt-2 rounded-xl bg-[#F7F8FA] px-3 py-2 text-sm font-medium text-[#2C2D2E]">
-                <div className="flex min-w-0 items-center gap-2">
-                  <MapPin className="h-4 w-4 shrink-0 text-[#2787F5]" />
-                  <span className="truncate">{driver.fromLocation || "—"}</span>
-                  <span className="shrink-0 text-[#818C99]">→</span>
-                  <span className="truncate">{driver.toLocation || "—"}</span>
-                </div>
+              <div className="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900">
+                <p className="truncate">{driver.fromLocation || "—"}</p>
+                <p className="truncate text-gray-500">→ {driver.toLocation || "—"}</p>
               </div>
             )}
-            {isCity && driver.rideComment ? (
-              <p className="mt-2 line-clamp-3 rounded-xl bg-[#F7F8FA] px-3 py-2 text-sm leading-relaxed text-[#818C99]">
-                <span className="font-medium text-[#2C2D2E]">Комментарий:</span> {driver.rideComment}
-              </p>
-            ) : null}
-            {!isCity && (
-              <div className="mt-1 flex items-center gap-2 text-sm text-[#818C99]">
-                <Car className="h-4 w-4" />
-                <span>{driver.car}</span>
-              </div>
-            )}
-            <div className="mt-1 flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`text-sm ${star <= Math.round(driver.rating) ? "text-[#FFC107]" : "text-[#E1E3E6]"}`}
-                >
-                  ★
-                </span>
-              ))}
-              <span className="ml-1 text-sm text-[#818C99]">{driver.rating}</span>
-            </div>
           </div>
           <div className="shrink-0 text-right">
-            <div className="text-2xl font-bold text-[#2787F5]">{driver.price > 0 ? `${driver.price} ₽` : "—"}</div>
-            <div className="mt-0.5 flex items-center justify-end gap-1 text-sm text-[#818C99]">
-              <Clock className="h-3 w-3" />
-              <span>{isStaticPoint ? "Постоянная точка" : `${driver.timer} мин`}</span>
-            </div>
+            <div className="text-2xl font-bold text-gray-900">{driver.price > 0 ? `${driver.price} ₽` : "—"}</div>
           </div>
         </div>
 
         {actionError && (
-          <p className="mb-3 rounded-xl bg-[#FAEBEB] px-3 py-2 text-center text-sm text-[#E64646]">{actionError}</p>
+          <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600">{actionError}</p>
         )}
 
         <div className="space-y-2">
-          {canTakeCity && (
-            <div className="rounded-2xl bg-[#F7F8FA] p-3">
-              <p className="mb-2 text-sm font-semibold text-[#2C2D2E]">Откликнуться с ценой</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { delta: 0, label: `За ${driver.price || 0} ₽` },
-                  { delta: 10, label: "+10 ₽" },
-                  { delta: 30, label: "+30 ₽" },
-                  { delta: 50, label: "+50 ₽" },
-                ].map((item) => (
-                  <button
-                    key={item.delta}
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void sendOffer(item.delta)}
-                    className="rounded-xl bg-white py-3 text-sm font-bold text-[#2787F5] shadow-sm ring-1 ring-[#E1E3E6] transition-colors active:bg-[#F0F6FF] disabled:opacity-50"
-                  >
-                    {busy === "offer" ? "Отправка…" : item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {viewerIsDriver && isCity && (
             <button
               type="button"
               onClick={openNavigator}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F0F6FF] py-3 text-base font-semibold text-[#2787F5] transition-colors active:bg-[#DCEBFF]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F0F6FF] py-3 text-base font-semibold text-[#2787F5] transition-colors active:bg-[#F0F6FF]"
             >
               <Navigation className="h-4 w-4" />
               Открыть в навигаторе
@@ -218,7 +228,7 @@ export function DriverBottomSheet({
               type="button"
               disabled={busy !== null}
               onClick={() => void execAction("arrive", () => onDriverArrive(driver.activeRide!))}
-              className="w-full rounded-xl bg-[#2787F5] py-3 text-base font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:opacity-50"
+              className={cn(poputi.btnPrimary, "py-3 text-base")}
             >
               {busy === "arrive" ? "Отправляем…" : "На месте"}
             </button>
@@ -229,7 +239,7 @@ export function DriverBottomSheet({
               type="button"
               disabled={busy !== null}
               onClick={() => void execAction("start", () => onDriverStart(driver.activeRide!))}
-              className="w-full rounded-xl bg-[#2787F5] py-3 text-base font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:opacity-50"
+              className={cn(poputi.btnPrimary, "py-3 text-base")}
             >
               {busy === "start" ? "Стартуем…" : "Начать поездку"}
             </button>
@@ -240,7 +250,7 @@ export function DriverBottomSheet({
               type="button"
               disabled={busy !== null}
               onClick={() => void execAction("complete", () => onDriverComplete(driver.activeRide!))}
-              className="w-full rounded-xl bg-[#4BB34B] py-3 text-base font-semibold text-white shadow-sm shadow-[#4BB34B]/20 transition-colors active:bg-[#429C41] disabled:opacity-50"
+              className="w-full rounded-xl bg-orange-500 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/25 active:scale-[0.98] disabled:opacity-50"
             >
               {busy === "complete" ? "Завершаем…" : "Завершить поездку"}
             </button>
@@ -251,33 +261,25 @@ export function DriverBottomSheet({
               type="button"
               disabled={busy !== null}
               onClick={() => void execAction("cancel", () => onPassengerCancel(driver.activeRide!))}
-              className="w-full rounded-xl bg-[#FAEBEB] py-3 text-base font-semibold text-[#E64646] transition-colors active:bg-[#F5D6D6] disabled:opacity-50"
+              className="w-full rounded-xl bg-red-50 py-3 text-base font-semibold text-red-600 active:bg-red-100 disabled:opacity-50"
             >
               {busy === "cancel" ? "Отмена…" : "Отменить заказ"}
             </button>
           )}
 
-          {!canTakeCity && !canStartRide && !canCompleteRide && !canCancelByPassenger && (
-            <div className="rounded-xl bg-[#F7F8FA] px-3 py-2 text-center text-sm font-medium text-[#818C99]">
+          {!canTakeCity && !canStartRide && !canCompleteRide && !canCancelByPassenger && !canArriveRide && (
+            <div className="rounded-xl bg-gray-50 px-3 py-2 text-center text-sm font-medium text-gray-500">
               {isCity ? statusLabel[status] : "Действия недоступны"}
             </div>
           )}
 
           {!isStaticPoint && !isCity && !isOwner && (
-            <button
-              type="button"
-              onClick={onBooking}
-              className="w-full rounded-xl bg-[#2787F5] py-3 font-semibold text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8]"
-            >
+            <button type="button" onClick={onBooking} className={poputi.btnPrimary}>
               Забронировать
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl bg-[#EBEDF0] py-3 font-medium text-[#2C2D2E] transition-colors active:bg-[#D3D9DE]"
-          >
+          <button type="button" onClick={onClose} className={cn(poputi.btnGhost, "w-full")}>
             Закрыть
           </button>
         </div>
@@ -287,14 +289,13 @@ export function DriverBottomSheet({
             type="button"
             onClick={() => void handleDelete()}
             disabled={isDeleting}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FAEBEB] py-3 font-medium text-[#E64646] transition-colors active:bg-[#F5D6D6] disabled:opacity-50"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-3 font-medium text-red-600 active:bg-red-100 disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
             {isDeleting ? "Удаление..." : "Удалить мою заявку"}
           </button>
         )}
-        </div>
       </div>
-    </div>
+    </BottomSheet>
   )
 }

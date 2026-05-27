@@ -29,6 +29,7 @@ export type RideOfferMessageMetadata = {
   driverRating?: number | null
   pickupEtaMin?: number | null
   price: number
+  priceDelta?: number | null
   status: "pending" | "accepted" | "rejected" | "cancelled"
   from?: string | null
   to?: string | null
@@ -75,6 +76,7 @@ export async function createRideOffer(
     driverRating: payload.driverRating ?? 5,
     pickupEtaMin: payload.pickupEtaMin ?? 7,
     price,
+    priceDelta: payload.priceDelta,
     status: "pending",
     from: payload.from ?? null,
     to: payload.to ?? null,

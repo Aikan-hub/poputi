@@ -82,7 +82,7 @@ export function ProfileScreen({
     .join("") || "VK"
 
   return (
-    <div className="app-scrollbar h-full overflow-y-auto bg-[#EBEDF0]">
+    <div className="app-scrollbar h-full overflow-y-auto bg-gray-100">
       <RideHistoryModal
         open={rideHistoryOpen}
         onClose={() => setRideHistoryOpen(false)}
@@ -105,7 +105,7 @@ export function ProfileScreen({
             </div>
           )}
           <div className="min-w-0">
-            <div className="mb-1 inline-flex items-center rounded-full bg-white/15 px-2 py-1 text-xs font-semibold">
+            <div className="mb-1 inline-flex items-center rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
               {isDriver ? "Водитель" : "Пассажир"}
             </div>
             <h1 className="truncate text-2xl font-bold leading-tight">{fullName}</h1>
@@ -122,16 +122,16 @@ export function ProfileScreen({
       </header>
 
       <div className="-mt-4 space-y-4 p-4 pb-8">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#E1E3E6]/70">
+        <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
           <div className="flex flex-col gap-3">
             <div>
-              <h3 className="font-bold text-[#2C2D2E]">Роль</h3>
-              <p className="text-sm text-[#818C99]">
+              <h3 className="font-bold text-gray-900">Роль</h3>
+              <p className="text-sm text-gray-500">
                 {isDriver ? "Вы принимаете заказы" : "Вы ищете поездки"}
               </p>
             </div>
             <div
-              className="flex w-full flex-row gap-0 rounded-xl bg-[#EBEDF0] p-1"
+              className="flex w-full flex-row gap-0 rounded-xl bg-gray-100 p-1"
               role="tablist"
               aria-label="Роль в приложении"
             >
@@ -144,8 +144,8 @@ export function ProfileScreen({
                 }}
                 className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-all duration-200 ease-out ${
                   !isDriver
-                    ? "bg-white font-bold text-[#2C2D2E] shadow-sm"
-                    : "bg-transparent font-semibold text-[#818C99] shadow-none"
+                    ? "bg-white font-bold text-gray-900 shadow-sm"
+                    : "bg-transparent font-semibold text-gray-500 shadow-none"
                 }`}
               >
                 Пассажир
@@ -184,8 +184,8 @@ export function ProfileScreen({
                 }}
                 className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-all duration-200 ease-out ${
                   isDriver
-                    ? "bg-white font-bold text-[#2C2D2E] shadow-sm"
-                    : "bg-transparent font-semibold text-[#818C99] shadow-none"
+                    ? "bg-white font-bold text-gray-900 shadow-sm"
+                    : "bg-transparent font-semibold text-gray-500 shadow-none"
                 }`}
               >
                 Водитель
@@ -194,10 +194,10 @@ export function ProfileScreen({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#E1E3E6]/70">
-          <h3 className="mb-3 font-bold text-[#2C2D2E]">Статистика</h3>
-          <div className="mb-4 rounded-xl bg-[#F0F6FF] px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase text-[#818C99]">
+        <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+          <h3 className="mb-3 font-bold text-gray-900">Статистика</h3>
+          <div className="mb-4 rounded-xl bg-[#F0F6FF] px-4 py-3">
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase text-gray-500">
               <Trophy className="h-4 w-4 text-[#2787F5]" />
               Уровень
             </div>
@@ -206,51 +206,50 @@ export function ProfileScreen({
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-[#F7F8FA] p-4 text-center">
-              <p className="text-xs font-semibold text-[#818C99]">Рейтинг</p>
-              <div className="mt-1 flex items-center justify-center gap-0.5 text-[#FFC107]">
+            <div className="rounded-xl bg-gray-50 p-4 text-center">
+              <p className="text-xs font-semibold text-gray-500">Рейтинг</p>
+              <div className="mt-1 flex items-center justify-center gap-0.5 text-yellow-400">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star key={s} className={`h-4 w-4 ${s <= Math.round(profileStats.averageRating) ? "fill-current" : ""}`} />
                 ))}
               </div>
-              <p className="mt-1 text-2xl font-bold text-[#2C2D2E]">{profileStats.averageRating.toFixed(1)}</p>
-              <p className="text-xs text-[#818C99]">Отзывов: {profileStats.reviewsReceived}</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{profileStats.averageRating.toFixed(1)}</p>
+              <p className="text-xs text-gray-500">Отзывов: {profileStats.reviewsReceived}</p>
             </div>
-            <div className="rounded-xl bg-[#F7F8FA] p-4 text-center">
-              <p className="text-xs font-semibold text-[#818C99]">Поездок</p>
+            <div className="rounded-xl bg-gray-50 p-4 text-center">
+              <p className="text-xs font-semibold text-gray-500">Поездок</p>
               <p className="mt-2 text-3xl font-bold text-[#2787F5]">{profileStats.totalRides}</p>
-              <p className="text-xs text-[#818C99]">завершено</p>
+              <p className="text-xs text-gray-500">завершено</p>
             </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#E1E3E6]/70">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-100">
           <button
             type="button"
             onClick={() => setRideHistoryOpen(true)}
-            className="flex w-full items-center gap-3 border-b border-[#E1E3E6] px-4 py-3.5 text-left transition-colors active:bg-[#EBEDF0]"
+            className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3.5 text-left transition-colors active:bg-gray-50"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
               <Clock className="h-5 w-5" />
             </span>
-            <span className="font-medium text-[#2C2D2E]">История заявок</span>
-            <ChevronLeft className="ml-auto h-5 w-5 shrink-0 rotate-180 text-[#818C99]" />
+            <span className="font-medium text-gray-900">История заявок</span>
+            <ChevronLeft className="ml-auto h-5 w-5 shrink-0 rotate-180 text-gray-400" />
           </button>
           {showAdminEntry && (
             <button
               type="button"
               onClick={onOpenAdmin}
-              className="flex w-full items-center gap-3 border-t border-[#E1E3E6] px-4 py-3.5 text-left transition-colors active:bg-[#EBEDF0]"
-              style={{ textDecoration: "none", color: "inherit" }}
+              className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-3.5 text-left transition-colors active:bg-gray-50"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
                 <Shield className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-medium text-[#2C2D2E]">Админ-панель</span>
-                <span className="text-sm text-[#818C99]">Для управления приложением</span>
+                <span className="block font-medium text-gray-900">Админ-панель</span>
+                <span className="text-sm text-gray-500">Для управления приложением</span>
               </span>
-              <ChevronLeft className="h-5 w-5 shrink-0 rotate-180 text-[#818C99]" />
+              <ChevronLeft className="h-5 w-5 shrink-0 rotate-180 text-gray-400" />
             </button>
           )}
         </div>
@@ -258,7 +257,7 @@ export function ProfileScreen({
 
       {driverPayOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
           role="presentation"
           onClick={() => {
             setDriverPayOpen(false)
@@ -266,31 +265,31 @@ export function ProfileScreen({
           }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+            className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl"
             role="dialog"
             aria-labelledby="driver-pay-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="driver-pay-title" className="text-lg font-bold text-[#2C2D2E]">
+            <h2 id="driver-pay-title" className="text-lg font-bold text-gray-900">
               Доступ водителя — {DRIVER_ACCESS_PRICE_LABEL}
             </h2>
             {driverPayError && (
-              <p className="mt-2 rounded-lg bg-[#FAEBEB] px-3 py-2 text-sm text-[#E64646]">{driverPayError}</p>
+              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{driverPayError}</p>
             )}
             {!driverPayError && (
-              <p className="mt-2 text-sm text-[#818C99]">
+              <p className="mt-2 text-sm text-gray-500">
                 Оплатите на странице CloudTips. После оплаты нажмите «Проверить оплату» — мы сверим данные с
                 сервером CloudTips.
               </p>
             )}
             {driverCheckHint && (
-              <p className="mt-2 rounded-lg bg-[#FFF8E1] px-3 py-2 text-sm text-[#2C2D2E]">{driverCheckHint}</p>
+              <p className="mt-2 rounded-xl bg-yellow-50 px-3 py-2 text-sm text-gray-900">{driverCheckHint}</p>
             )}
             {driverPayUrl ? (
               <button
                 type="button"
                 onClick={() => void openPaymentUrl(driverPayUrl)}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-all hover:bg-[#1F6AD8] active:scale-[0.98]"
               >
                 <ExternalLink className="h-4 w-4" />
                 Открыть оплату ещё раз
@@ -327,7 +326,7 @@ export function ProfileScreen({
                   }
                   setDriverCheckHint("Не удалось проверить оплату. Проверьте интернет и попробуйте снова.")
                 }}
-                className="w-full rounded-xl bg-[#4BB34B] py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400"
               >
                 {driverChecking ? "Проверка…" : "Проверить оплату"}
               </button>
@@ -337,7 +336,7 @@ export function ProfileScreen({
                   setDriverPayOpen(false)
                   setDriverChecking(false)
                 }}
-                className="w-full rounded-xl bg-[#EBEDF0] py-3 text-sm font-semibold text-[#2C2D2E]"
+                className="w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
               >
                 Закрыть
               </button>

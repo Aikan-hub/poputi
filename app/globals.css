@@ -4,13 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --poputi-brand: #2787f5;
+  --poputi-brand-hover: #1f6ad8;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.02 265);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.21 0.02 265);
+  --primary: oklch(0.488 0.243 264.376);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -153,7 +155,11 @@
 
   .app-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: #d3d9de;
+    background: #d1d5db;
+  }
+
+  .poputi-map-pin {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
   }
 }
 

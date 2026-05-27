@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { AppBootstrap } from './vk-bootstrap'
@@ -33,31 +34,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <head>
-        <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function() {
+      <body className="font-sans antialiased">
+        <Script
+          src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"
+          strategy="beforeInteractive"
+        />
+        <Script id="vk-bridge-init" strategy="beforeInteractive">
+          {`(function() {
   try {
     if (typeof vkBridge !== 'undefined') {
       vkBridge.send('VKWebAppInit');
       window.vkBridgeInitialized = true;
-      console.log('--- VK BRIDGE INITIALIZED ATOMICALLY ---');
     }
   } catch (e) {
-    console.error('Atomic init failed', e);
+    console.error('VK bridge init failed', e);
   }
-})();`,
-          }}
-        />
+})();`}
+        </Script>
         {process.env.NODE_ENV !== 'production' && (
           <>
-            <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-            <script dangerouslySetInnerHTML={{ __html: `eruda.init();` }} />
+            <Script src="https://cdn.jsdelivr.net/npm/eruda" strategy="lazyOnload" />
+            <Script id="eruda-init" strategy="lazyOnload">
+              {`if (typeof eruda !== 'undefined') eruda.init();`}
+            </Script>
           </>
         )}
-      </head>
-      <body className="font-sans antialiased">
         <AppBootstrap />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

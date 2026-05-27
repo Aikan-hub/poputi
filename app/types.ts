@@ -28,6 +28,7 @@ export type RideOfferMetadata = {
   driverRating?: number | null
   pickupEtaMin?: number | null
   price: number
+  priceDelta?: number | null
   status: RideOfferStatus
   from?: string | null
   to?: string | null
