@@ -68,6 +68,58 @@ export type BookedPassengerRow = {
   averageRating: number
 }
 
+export async function rpcCancelIntercityBooking(
+  supabase: SupabaseClient,
+  bookingId: number,
+  passengerVkId: string
+): Promise<RpcBookResult> {
+  const { data, error } = await supabase.rpc("cancel_intercity_booking", {
+    p_booking_id: bookingId,
+    p_passenger_vk_id: passengerVkId,
+  })
+  if (error) {
+    console.error("cancel_intercity_booking", error)
+    return { ok: false, err: "rpc" }
+  }
+  const row = data as { ok?: boolean; err?: string } | null
+  if (!row || row.ok !== true) return { ok: false, err: row?.err || "unknown" }
+  return { ok: true }
+}
+
+export async function fetchViewerBookingId(
+  supabase: SupabaseClient,
+  rideId: number,
+  passengerVkId: string
+): Promise<number | null> {
+  const { data } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("ride_id", rideId)
+    .eq("passenger_vk_id", passengerVkId)
+    .eq("status", "booked")
+    .maybeSingle()
+  return data?.id != null ? (data.id as number) : null
+}
+
+export function bookErrorMessage(err?: string): string {
+  switch (err) {
+    case "banned":
+      return "Доступ ограничен администратором."
+    case "no_seats":
+      return "Свободных мест больше нет."
+    case "already":
+      return "Вы уже бронировали место в этой поездке."
+    case "owner":
+      return "Нельзя забронировать место в своей поездке."
+    case "not_found":
+      return "Поездка не найдена."
+    case "rpc":
+      return "Сервер недоступен. Проверьте миграции Supabase (book_intercity_seat)."
+    default:
+      return "Не удалось выполнить действие. Попробуйте ещё раз."
+  }
+}
+
 export async function fetchBookedPassengersForRide(
   supabase: SupabaseClient,
   rideId: number

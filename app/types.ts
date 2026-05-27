@@ -116,6 +116,7 @@ export interface SupabaseRide {
   city?: string | null
   status?: string | null
   comment?: string | null
+  depart_at?: string | null
 }
 
 export interface RideOfferRow {

@@ -6,8 +6,13 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 
-# Environment variables
+# Environment variables (секреты — только .env.example в репо)
+.env
 .env*.local
+
+# IDE / локальные артефакты
+.claude/
+.pnpm-store/
 
 # Common ignores
 node_modules

@@ -17,14 +17,41 @@ export function parseRideCoords(ride: SupabaseRide): [number, number] | null {
 export function matchesCity(rideCity: string | null | undefined, selected: AppCity): boolean {
   const rc = (rideCity || "").trim()
   if (!rc) return true
-  if (rc.toLowerCase() === selected.toLowerCase()) return true
-  return true
+  return rc.toLowerCase() === selected.toLowerCase()
 }
 
+export function formatDepartAt(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (!Number.isFinite(d.getTime())) return null
+  return d.toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+export function isIntercityRideType(type: string | null | undefined): boolean {
+  const t = (type || "").trim()
+  return t !== "" && t !== "City" && !isPersistentRideType(t)
+}
+
+/** Заявки, которые показываются на городской карте (не лента межгорода). */
+export function isCityMapRide(ride: Pick<SupabaseRide, "type" | "price">): boolean {
+  const t = (ride.type || "").trim()
+  if (t === "City") return true
+  if (isPersistentRideType(t)) return true
+  if (t === "Driver" && (ride.price || 0) === 0) return true
+  return false
+}
+
+/** @deprecated используйте isCityMapRide */
 export function isCityMapRideType(type: string | null | undefined): boolean {
   const t = (type || "").trim()
   if (!t) return true
-  if (t === "City" || t === "Passenger" || t === "Driver") return true
+  if (t === "City") return true
+  if (t === "Driver") return true
   return isPersistentRideType(t)
 }
 
