@@ -59,30 +59,12 @@ export function DriverPlacemark({
   const isDriverType = rt === "Driver"
   const isPassengerType = rt === "Passenger" || rt === "City" || !rt
   const badgeColor = isDriverType ? "#4BB34B" : "#2787F5"
-  const showPricePin = isPassengerType && driver.price > 0 && !isPersistent
   const showBadge = isDriverType || isPassengerType
 
   const CY = 38
   const BY = 10
 
   const placemarkOptions = useMemo(() => {
-    if (showPricePin) {
-      const priceLabel = `${driver.price} ₽`
-      const pinSvg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
-        <rect x="8" y="4" width="56" height="26" rx="13" fill="#2787F5"/>
-        <text x="36" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial,sans-serif">${priceLabel}</text>
-        <path d="M36 34 L28 52 C28 58 44 58 44 52 Z" fill="#2787F5"/>
-        <circle cx="36" cy="52" r="6" fill="white" opacity="0.35"/>
-      </svg>`
-      return {
-        iconLayout: "default#image",
-        iconImageHref: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg)}`,
-        iconImageSize: [72, 72] as [number, number],
-        iconImageOffset: [-36, -68] as [number, number],
-      }
-    }
-
     const badgeSvg = showBadge
       ? `<circle cx="28" cy="${BY}" r="9" fill="${badgeColor}" stroke="white" stroke-width="1.5"/>
          ${
@@ -151,8 +133,6 @@ export function DriverPlacemark({
     showBadge,
     badgeColor,
     isDriverType,
-    showPricePin,
-    driver.price,
   ])
 
   return (
