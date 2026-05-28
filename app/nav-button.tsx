@@ -21,10 +21,11 @@ export function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex min-h-[52px] min-w-16 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 transition-all duration-200 active:scale-[0.97] ${
+      className={`relative flex min-h-[52px] min-w-16 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 transition-[background-color,color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2787F5] focus-visible:ring-offset-2 motion-reduce:active:scale-100 active:scale-[0.97] ${
         isActive ? "bg-[#F0F6FF] text-[#2787F5]" : "text-[#818C99] active:bg-gray-100"
       }`}
       aria-current={isActive ? "page" : undefined}
+      aria-label={label}
     >
       <span className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${isActive ? "[&>svg]:stroke-[2.4]" : ""}`}>
         {icon}

@@ -62,14 +62,25 @@ export function IntercityDriverManageModal({
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-end bg-gray-900/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="absolute inset-0 z-50 flex items-end safe-area-bottom">
+      <button
+        type="button"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm motion-reduce:backdrop-blur-none"
+        aria-label="Закрыть"
+        onClick={onClose}
+      />
       <div
-        className="max-h-[85%] w-full animate-in slide-in-from-bottom overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.1)] duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="intercity-manage-title"
+        className="relative max-h-[85%] w-full overscroll-contain motion-reduce:animate-none animate-in slide-in-from-bottom overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.1)] duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200" />
-          <h2 className="mb-1 text-xl font-bold text-gray-900">Места в поездке</h2>
+          <h2 id="intercity-manage-title" className="mb-1 text-xl font-bold text-gray-900">
+            Места в поездке
+          </h2>
           <p className="mb-4 text-sm text-gray-500">
             {(ride.from_location || "—") + " → " + (ride.to_location || "—")}
           </p>
@@ -103,7 +114,7 @@ export function IntercityDriverManageModal({
                         type="button"
                         disabled={busyId === row.bookingId}
                         onClick={() => void onNoShow(row.bookingId)}
-                        className="shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-600 transition-colors active:bg-amber-100 disabled:opacity-50"
+                        className="poputi-focus-ring shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-100 active:bg-amber-100 disabled:opacity-50"
                       >
                         {busyId === row.bookingId ? "…" : "Не явился"}
                       </button>
@@ -125,7 +136,7 @@ export function IntercityDriverManageModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-6 w-full rounded-xl bg-gray-100 py-3 font-medium text-gray-900 transition-colors active:bg-gray-200"
+            className="poputi-btn-motion poputi-focus-ring mt-6 w-full rounded-xl bg-gray-100 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-200 active:bg-gray-200"
           >
             Закрыть
           </button>

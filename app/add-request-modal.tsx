@@ -403,9 +403,12 @@ export function AddRequestModal({
                 <div className="flex items-baseline gap-1">
                   <input
                     type="number"
+                    inputMode="numeric"
+                    name="city_passenger_price"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="w-full bg-transparent text-lg font-bold text-gray-900 outline-none"
+                    aria-label="Предложите цену"
+                    className="w-full bg-transparent text-lg font-bold text-gray-900 focus-visible:outline-none focus-visible:ring-0"
                     placeholder="400"
                   />
                   <span className="font-medium text-gray-500">₽</span>
@@ -427,14 +430,20 @@ export function AddRequestModal({
             </div>
             <textarea
               id="poputi-ride-comment"
-              placeholder="Комментарий для водителя"
+              name="city_passenger_comment"
+              placeholder="Комментарий для водителя…"
               value={comment}
               {...disableT9}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
+              aria-label="Комментарий для водителя"
               className={cn(poputi.input, "mt-1 w-full resize-none")}
             />
-            {submitError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>}
+            {submitError ? (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+                {submitError}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={() => void handleSubmitCityPassenger()}
@@ -457,48 +466,61 @@ export function AddRequestModal({
       <div className="space-y-3">
         <input
           type="text"
-          placeholder="Откуда (город или адрес)"
+          name="intercity_from"
+          placeholder="Откуда (город или адрес)…"
           value={address}
           {...disableT9}
           onChange={(e) => setAddress(e.target.value)}
+          aria-label="Откуда"
           className={cn(poputi.input, "w-full")}
         />
         <input
           type="text"
-          placeholder="Куда"
+          name="intercity_to"
+          placeholder="Куда…"
           value={to}
           {...disableT9}
           onChange={(e) => setTo(e.target.value)}
+          aria-label="Куда"
           className={cn(poputi.input, "w-full")}
         />
         <input
           type="datetime-local"
+          name="intercity_depart_at"
           value={departAtLocal}
           onChange={(e) => setDepartAtLocal(e.target.value)}
+          aria-label="Время выезда"
           className={cn(poputi.input, "w-full")}
         />
         <p className="-mt-2 text-xs text-gray-500">Время выезда (необязательно)</p>
         <input
           type="number"
-          placeholder="Цена за место (₽)"
+          inputMode="numeric"
+          name="intercity_price"
+          placeholder="Цена за место (₽)…"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
+          aria-label="Цена за место"
           className={cn(poputi.input, "w-full")}
         />
         <input
           type="text"
-          placeholder="Авто (напр. Kia Rio)"
+          name="intercity_car"
+          placeholder="Авто (напр. Kia Rio)…"
           value={carModel}
           {...disableT9}
           onChange={(e) => setCarModel(e.target.value)}
+          aria-label="Автомобиль"
           className={cn(poputi.input, "w-full")}
         />
         <textarea
-          placeholder="Комментарий"
+          name="intercity_comment"
+          placeholder="Комментарий…"
           value={comment}
           {...disableT9}
           onChange={(e) => setComment(e.target.value)}
           rows={2}
+          aria-label="Комментарий"
           className={cn(poputi.input, "w-full resize-none")}
         />
         <div className="rounded-xl bg-gray-100 px-4 py-3">
@@ -509,9 +531,11 @@ export function AddRequestModal({
                 key={seat}
                 type="button"
                 onClick={() => setSeatCount(seat)}
-                className={`h-10 w-10 rounded-full border text-sm font-semibold transition-colors ${
+                className={`poputi-focus-ring h-10 w-10 rounded-full border text-sm font-semibold transition-colors ${
                   seat <= seatCount ? "border-[#2787F5] bg-[#2787F5] text-white" : "border-gray-200 bg-white text-gray-900"
                 }`}
+                aria-label={`${seat} мест`}
+                aria-pressed={seat <= seatCount}
               >
                 {seat}
               </button>

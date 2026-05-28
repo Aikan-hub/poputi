@@ -403,7 +403,7 @@ export function AdminPanel({
                 aria-selected={adminCity === c}
                 onClick={() => setAdminCity(c)}
                 className={cn(
-                  "flex-1 rounded-lg py-2.5 px-3 text-center text-sm font-semibold transition-all",
+                  "poputi-btn-motion poputi-focus-ring flex-1 rounded-lg py-2.5 px-3 text-center text-sm font-semibold",
                   adminCity === c
                     ? "bg-[#2787F5] text-white shadow-sm"
                     : "text-[#818C99] active:bg-white/60"
@@ -580,7 +580,7 @@ export function AdminPanel({
               Отмена
             </Button>
             <Button onClick={saveEdit} disabled={savingEdit} className="bg-[#2787F5] text-white hover:bg-[#1F6AD8]">
-              {savingEdit ? "Сохранение..." : "Сохранить"}
+              {savingEdit ? "Сохранение…" : "Сохранить"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -598,7 +598,16 @@ export function AdminPanel({
             </div>
             <div className="space-y-2">
               <Label>Причина</Label>
-              <Input value={banReason} onChange={(e) => setBanReason(e.target.value)} className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]" placeholder="Нарушение правил..." />
+              <Input
+                value={banReason}
+                onChange={(e) => setBanReason(e.target.value)}
+                name="ban_reason"
+                autoComplete="off"
+                spellCheck={false}
+                className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] focus-visible:ring-[#2787F5]"
+                placeholder="Нарушение правил…"
+                aria-label="Причина блокировки"
+              />
             </div>
           </div>
           <DialogFooter>

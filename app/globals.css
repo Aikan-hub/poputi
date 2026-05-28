@@ -136,6 +136,18 @@
   input,
   textarea {
     font: inherit;
+    touch-action: manipulation;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -160,6 +172,14 @@
 
   .poputi-map-pin {
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+  }
+
+  .poputi-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2787F5] focus-visible:ring-offset-2;
+  }
+
+  .poputi-btn-motion {
+    @apply transition-[background-color,border-color,color,transform,box-shadow,opacity] motion-reduce:transition-none motion-reduce:active:scale-100;
   }
 }
 

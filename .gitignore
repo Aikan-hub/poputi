@@ -12,6 +12,7 @@ __v0_jsx-dev-runtime.ts
 
 # IDE / локальные артефакты
 .claude/
+.agents/
 .pnpm-store/
 
 # Common ignores

@@ -444,14 +444,14 @@ function CityMapView({
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-500">
-          Инициализация VK Mini App...
+          Инициализация VK Mini App…
         </div>
       )}
 
       {isVkReady && !isYandexReady && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100/85 text-gray-500 backdrop-blur-sm">
           <div className="rounded-2xl bg-white px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-gray-200">
-            Загрузка карты...
+            Загрузка карты…
           </div>
         </div>
       )}
@@ -474,10 +474,10 @@ function CityMapView({
         <button
           type="button"
           onClick={() => setShowAddRequest(true)}
-          className="absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/30 ring-4 ring-white/90 transition-transform active:scale-95"
+          className="poputi-focus-ring absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/30 ring-4 ring-white/90 transition-transform hover:bg-[#1F6AD8] motion-reduce:active:scale-100 active:scale-95"
           aria-label="Новая заявка"
         >
-          <Plus className="h-7 w-7" />
+          <Plus className="h-7 w-7" aria-hidden />
         </button>
       )}
 

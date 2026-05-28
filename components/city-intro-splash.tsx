@@ -40,7 +40,7 @@ export function CityIntroSplash({
                 key={city}
                 type="button"
                 onClick={() => onSelectCity(city)}
-                className={`flex w-full items-center justify-center rounded-2xl border-2 py-5 text-lg font-bold shadow-sm transition-all active:scale-[0.98] ${
+                className={`poputi-btn-motion poputi-focus-ring flex w-full items-center justify-center rounded-2xl border-2 py-5 text-lg font-bold shadow-sm active:scale-[0.98] ${
                   active
                     ? "border-[#2787F5] bg-white text-[#2787F5] shadow-lg shadow-[#2787F5]/20"
                     : "border-transparent bg-white text-gray-900 hover:border-gray-200"

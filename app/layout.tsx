@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { AppBootstrap } from './vk-bootstrap'
@@ -35,30 +34,6 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className="font-sans antialiased">
-        <Script
-          src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"
-          strategy="beforeInteractive"
-        />
-        <Script id="vk-bridge-init" strategy="beforeInteractive">
-          {`(function() {
-  try {
-    if (typeof vkBridge !== 'undefined') {
-      vkBridge.send('VKWebAppInit');
-      window.vkBridgeInitialized = true;
-    }
-  } catch (e) {
-    console.error('VK bridge init failed', e);
-  }
-})();`}
-        </Script>
-        {process.env.NODE_ENV !== 'production' && (
-          <>
-            <Script src="https://cdn.jsdelivr.net/npm/eruda" strategy="lazyOnload" />
-            <Script id="eruda-init" strategy="lazyOnload">
-              {`if (typeof eruda !== 'undefined') eruda.init();`}
-            </Script>
-          </>
-        )}
         <AppBootstrap />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

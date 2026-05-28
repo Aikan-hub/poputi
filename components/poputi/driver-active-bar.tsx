@@ -113,7 +113,7 @@ export function DriverActiveRideBar({
               disabled={busy}
               onClick={() => void runAction()}
               className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] px-8 py-5 text-lg font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60",
+                "poputi-btn-motion poputi-focus-ring flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] px-8 py-5 text-lg font-bold text-white shadow-lg active:scale-95 disabled:opacity-60",
                 action.color
               )}
             >

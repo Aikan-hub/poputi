@@ -97,6 +97,8 @@ export function ProfileScreen({
             <img
               src={vkUser.photo_200}
               alt={fullName}
+              width={80}
+              height={80}
               className="h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white/25"
             />
           ) : (
@@ -142,7 +144,7 @@ export function ProfileScreen({
                 onClick={() => {
                   setIsDriver(false)
                 }}
-                className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-all duration-200 ease-out ${
+                className={`poputi-btn-motion poputi-focus-ring flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold duration-200 ease-out ${
                   !isDriver
                     ? "bg-white font-bold text-gray-900 shadow-sm"
                     : "bg-transparent font-semibold text-gray-500 shadow-none"
@@ -182,7 +184,7 @@ export function ProfileScreen({
                   await openPaymentUrl(created.payUrl)
                   setDriverPayOpen(true)
                 }}
-                className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-all duration-200 ease-out ${
+                className={`poputi-btn-motion poputi-focus-ring flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-center text-sm font-semibold duration-200 ease-out ${
                   isDriver
                     ? "bg-white font-bold text-gray-900 shadow-sm"
                     : "bg-transparent font-semibold text-gray-500 shadow-none"
@@ -256,26 +258,31 @@ export function ProfileScreen({
       </div>
 
       {driverPayOpen && (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
-          role="presentation"
-          onClick={() => {
-            setDriverPayOpen(false)
-            setDriverChecking(false)
-          }}
-        >
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 safe-area-bottom">
+          <button
+            type="button"
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm motion-reduce:backdrop-blur-none"
+            aria-label="Закрыть окно оплаты"
+            onClick={() => {
+              setDriverPayOpen(false)
+              setDriverChecking(false)
+            }}
+          />
           <div
-            className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl"
+            className="relative w-full max-w-sm overscroll-contain rounded-[2rem] bg-white p-6 shadow-2xl"
             role="dialog"
+            aria-modal="true"
             aria-labelledby="driver-pay-title"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="driver-pay-title" className="text-lg font-bold text-gray-900">
               Доступ водителя — {DRIVER_ACCESS_PRICE_LABEL}
             </h2>
-            {driverPayError && (
-              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{driverPayError}</p>
-            )}
+            {driverPayError ? (
+              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+                {driverPayError}
+              </p>
+            ) : null}
             {!driverPayError && (
               <p className="mt-2 text-sm text-gray-500">
                 Оплатите на странице CloudTips. После оплаты нажмите «Проверить оплату» — мы сверим данные с
@@ -289,7 +296,7 @@ export function ProfileScreen({
               <button
                 type="button"
                 onClick={() => void openPaymentUrl(driverPayUrl)}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-all hover:bg-[#1F6AD8] active:scale-[0.98]"
+                className="poputi-btn-motion poputi-focus-ring mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 hover:bg-[#1F6AD8] active:scale-[0.98]"
               >
                 <ExternalLink className="h-4 w-4" />
                 Открыть оплату ещё раз
@@ -326,7 +333,7 @@ export function ProfileScreen({
                   }
                   setDriverCheckHint("Не удалось проверить оплату. Проверьте интернет и попробуйте снова.")
                 }}
-                className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400"
+                className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white hover:bg-gray-800 active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400"
               >
                 {driverChecking ? "Проверка…" : "Проверить оплату"}
               </button>
@@ -336,7 +343,7 @@ export function ProfileScreen({
                   setDriverPayOpen(false)
                   setDriverChecking(false)
                 }}
-                className="w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
+                className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-200 active:scale-95"
               >
                 Закрыть
               </button>

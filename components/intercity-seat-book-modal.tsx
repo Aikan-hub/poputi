@@ -48,6 +48,8 @@ function AvatarBubble({
       <img
         src={photoUrl}
         alt=""
+        width={size === "lg" ? 64 : 48}
+        height={size === "lg" ? 64 : 48}
         className={`${dim} shrink-0 rounded-full object-cover ring-2 ${ringClass}`}
       />
     )
@@ -140,16 +142,27 @@ export function IntercitySeatBookModal({
   }
 
   return (
-    <div className="absolute inset-0 z-[60] flex items-end bg-gray-900/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="absolute inset-0 z-[60] flex items-end safe-area-bottom">
+      <button
+        type="button"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm motion-reduce:backdrop-blur-none"
+        aria-label="Закрыть"
+        onClick={onClose}
+      />
       <div
-        className="max-h-[92%] w-full animate-in slide-in-from-bottom overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.1)] duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="intercity-seat-title"
+        className="relative max-h-[92%] w-full overscroll-contain motion-reduce:animate-none animate-in slide-in-from-bottom overflow-y-auto rounded-t-[2rem] bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.1)] duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-200" />
           <div className="mb-1 flex items-center gap-2">
             <Car className="h-5 w-5 text-[#2787F5]" />
-            <h2 className="text-lg font-bold text-gray-900">Схема салона</h2>
+            <h2 id="intercity-seat-title" className="text-lg font-bold text-gray-900">
+              Схема салона
+            </h2>
           </div>
           <p className="mb-4 text-sm text-gray-500">
             {(ride.from_location || "—") + " → " + (ride.to_location || "—")}
@@ -193,16 +206,18 @@ export function IntercitySeatBookModal({
           {!isOwner && available === 0 && (
             <p className="mt-1 text-center text-xs text-red-600">Мест больше нет.</p>
           )}
-          {bookError && (
-            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600">{bookError}</p>
-          )}
+          {bookError ? (
+            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600" role="alert">
+              {bookError}
+            </p>
+          ) : null}
 
           {myBookingId && !isOwner && (
             <button
               type="button"
               disabled={cancelling}
               onClick={() => void handleCancelBooking()}
-              className="mt-4 w-full rounded-xl bg-red-50 py-2.5 text-sm font-semibold text-red-600 active:bg-red-100 disabled:opacity-50"
+              className="poputi-btn-motion poputi-focus-ring mt-4 w-full rounded-xl bg-red-50 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 active:bg-red-100 disabled:opacity-50"
             >
               {cancelling ? "Отмена…" : "Отменить мою бронь"}
             </button>
@@ -212,7 +227,7 @@ export function IntercitySeatBookModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl bg-gray-100 py-3 font-medium text-gray-900 active:bg-gray-200"
+              className="poputi-btn-motion poputi-focus-ring flex-1 rounded-xl bg-gray-100 py-3 font-medium text-gray-900 hover:bg-gray-200 active:bg-gray-200"
             >
               Закрыть
             </button>
@@ -220,7 +235,7 @@ export function IntercitySeatBookModal({
               type="button"
               disabled={!canBook || confirming || !!myBookingId}
               onClick={() => void handleConfirm()}
-              className="flex-1 rounded-xl bg-[#2787F5] py-3 font-semibold text-white shadow-lg shadow-[#2787F5]/30 active:bg-[#1F6AD8] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+              className="poputi-btn-motion poputi-focus-ring flex-1 rounded-xl bg-[#2787F5] py-3 font-semibold text-white shadow-lg shadow-[#2787F5]/30 hover:bg-[#1F6AD8] active:bg-[#1F6AD8] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
             >
               {confirming ? "Бронируем…" : myBookingId ? "Уже забронировано" : "Забронировать"}
             </button>

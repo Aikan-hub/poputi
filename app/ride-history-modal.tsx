@@ -46,19 +46,21 @@ export function RideHistoryModal({
     setLoading(true)
     setError(null)
 
-    const revRes = await supabase.from("reviews").select("ride_id").eq("reviewer_vk_id", tag)
+    const [revRes, ridesRes] = await Promise.all([
+      supabase.from("reviews").select("ride_id").eq("reviewer_vk_id", tag),
+      supabase
+        .from("rides")
+        .select("*")
+        .eq("city", historyCity)
+        .or(`vk_id.eq.${tag},partner_vk_id.eq.${tag}`)
+        .order("created_at", { ascending: false }),
+    ])
+
     if (!revRes.error && revRes.data) {
       setReviewedRideIds(new Set(revRes.data.map((r: { ride_id: number }) => r.ride_id)))
     } else {
       setReviewedRideIds(new Set())
     }
-
-    const ridesRes = await supabase
-      .from("rides")
-      .select("*")
-      .eq("city", historyCity)
-      .or(`vk_id.eq.${tag},partner_vk_id.eq.${tag}`)
-      .order("created_at", { ascending: false })
 
     if (ridesRes.error) {
       const fb = await supabase
@@ -94,15 +96,18 @@ export function RideHistoryModal({
 
   return (
     <>
+      <div className="fixed inset-0 z-[60] flex items-end justify-center safe-area-bottom">
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/50"
+          aria-label="Закрыть историю"
+          onClick={onClose}
+        />
       <div
-        className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
-        onClick={onClose}
-        role="presentation"
-      >
-      <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white animate-in slide-in-from-bottom duration-300"
+        className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden overscroll-contain rounded-t-2xl bg-white motion-reduce:animate-none animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-labelledby="ride-history-title"
       >
         <div className="shrink-0 border-b border-gray-100 px-6 py-4">
@@ -114,7 +119,7 @@ export function RideHistoryModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-2 py-1 text-sm font-medium text-[#2787F5] hover:bg-gray-50"
+              className="poputi-focus-ring rounded-lg px-2 py-1 text-sm font-medium text-[#2787F5] hover:bg-gray-50"
             >
               Закрыть
             </button>
@@ -122,7 +127,11 @@ export function RideHistoryModal({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {loading && <p className="text-center text-sm text-gray-400">Загрузка…</p>}
-          {error && !loading && <p className="text-center text-sm text-red-600">{error}</p>}
+          {error && !loading ? (
+            <p className="text-center text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          ) : null}
           {!loading && !error && rows.length === 0 && (
             <p className="text-center text-sm text-gray-500">Пока нет сохранённых заявок с этим профилем VK.</p>
           )}
@@ -168,7 +177,7 @@ export function RideHistoryModal({
                           setReviewRide(r)
                           setReviewOpen(true)
                         }}
-                        className="mt-3 w-full rounded-xl bg-[#2787F5] py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-all hover:bg-[#1F6AD8] active:scale-[0.98]"
+                        className="mt-3 w-full rounded-xl bg-[#2787F5] py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-[background-color,transform] hover:bg-[#1F6AD8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2787F5] focus-visible:ring-offset-2 motion-reduce:active:scale-100 active:scale-[0.98]"
                       >
                         Завершить поездку / Оценить попутчика
                       </button>

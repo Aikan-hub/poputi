@@ -323,7 +323,7 @@ function RideCard({
           type="button"
           onClick={() => (ride.rawRide ? openSeatModal() : handleMockBook())}
           disabled={bookDisabled}
-          className="w-full rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 transition-all hover:bg-[#1F6AD8] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+          className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 hover:bg-[#1F6AD8] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
         >
           {bookLabel}
         </button>
@@ -350,7 +350,7 @@ function RideCard({
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors active:bg-red-100 disabled:opacity-50"
         >
           <Trash2 className="h-4 w-4" />
-          {isDeleting ? "Удаление..." : "Удалить мою заявку"}
+          {isDeleting ? "Удаление…" : "Удалить мою заявку"}
         </button>
       )}
     </div>

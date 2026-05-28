@@ -51,7 +51,11 @@ export function ChatsScreen({
           <MessageCircle className="h-7 w-7" />
         </div>
         <p className="mt-4 text-sm leading-relaxed text-gray-500">Войдите через VK, чтобы пользоваться чатами.</p>
-        <button type="button" className="mt-4 rounded-xl bg-[#F0F6FF] px-4 py-2 text-sm font-semibold text-[#2787F5]" onClick={() => setSelectedChat(null)}>
+        <button
+          type="button"
+          className="poputi-btn-motion poputi-focus-ring mt-4 rounded-xl bg-[#F0F6FF] px-4 py-2 text-sm font-semibold text-[#2787F5] hover:bg-[#E3EFFF]"
+          onClick={() => setSelectedChat(null)}
+        >
           Назад к списку
         </button>
       </div>
@@ -85,7 +89,7 @@ export function ChatsScreen({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2787F5] opacity-75" />
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-[#2787F5]" />
               </span>
-              Ищем ещё варианты...
+              Ищем ещё варианты…
             </div>
             <p className="mt-4 text-sm leading-relaxed text-gray-500 text-center px-6">
               Пока нет диалогов. Они появятся после бронирования поездки или оценки попутчика.
@@ -109,7 +113,13 @@ export function ChatsScreen({
                   }}
                 >
                   {chat.avatarUrl ? (
-                    <img src={chat.avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover bg-gray-100" />
+                    <img
+                      src={chat.avatarUrl}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 rounded-full object-cover bg-gray-100"
+                    />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2787F5] text-base font-semibold text-white">
                       {chat.avatar}
@@ -140,17 +150,17 @@ export function ChatsScreen({
                 <button
                   type="button"
                   onClick={() => setSelectedChat(chat)}
-                  className="flex-1 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-md shadow-[#2787F5]/20 transition-all hover:bg-[#1F6AD8] active:scale-95"
+                  className="poputi-btn-motion poputi-focus-ring flex-1 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-md shadow-[#2787F5]/20 hover:bg-[#1F6AD8] active:scale-95"
                 >
                   Открыть чат
                 </button>
                 <button
                   type="button"
                   onClick={() => void onDeleteChat(chat.id)}
-                  className="rounded-xl bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
+                  className="poputi-btn-motion poputi-focus-ring rounded-xl bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-200 active:scale-95"
                   aria-label="Удалить чат"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </div>
             </div>
@@ -255,12 +265,23 @@ function ChatView({
   return (
     <div className="flex h-full flex-col bg-gray-50">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-gray-100 bg-white px-6 py-4 shadow-sm">
-        <button type="button" onClick={onBack} className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Назад">
-          <ChevronLeft className="h-6 w-6 text-gray-800" />
+        <button
+          type="button"
+          onClick={onBack}
+          className="poputi-focus-ring -ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
+          aria-label="Назад"
+        >
+          <ChevronLeft className="h-6 w-6 text-gray-800" aria-hidden />
         </button>
         <button type="button" onClick={onOpenProfile} className="flex flex-1 items-center gap-3 text-left">
           {chat.avatarUrl ? (
-            <img src={chat.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover bg-gray-100" />
+            <img
+              src={chat.avatarUrl}
+              alt=""
+              width={40}
+              height={40}
+              className="h-10 w-10 shrink-0 rounded-full object-cover bg-gray-100"
+            />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2787F5] font-semibold text-white">
               {chat.avatar}
@@ -304,26 +325,33 @@ function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-gray-100 bg-white p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.04)]">
+      <div className="safe-area-bottom border-t border-gray-100 bg-white p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.04)]">
         <div className="flex items-center gap-2">
+          <label htmlFor="chat-message-input" className="sr-only">
+            Сообщение
+          </label>
           <input
+            id="chat-message-input"
+            name="message"
             type="text"
-            placeholder="Сообщение..."
+            autoComplete="off"
+            placeholder="Сообщение…"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void handleSend()
             }}
             disabled={sending}
-            className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#2787F5] disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition-[background-color,box-shadow] focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2787F5] disabled:opacity-50"
           />
           <button
             type="button"
             onClick={() => void handleSend()}
             disabled={sending || !message.trim()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20 transition-colors active:bg-[#1F6AD8] disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+            aria-label="Отправить сообщение"
+            className="poputi-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20 transition-colors hover:bg-[#1F6AD8] active:bg-[#1F6AD8] disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-5 w-5" aria-hidden />
           </button>
         </div>
       </div>
@@ -358,7 +386,13 @@ function RideOfferCard({
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
           {offer.driverAvatarUrl ? (
-            <img src={offer.driverAvatarUrl} alt="" className="h-12 w-12 rounded-full bg-gray-100 object-cover" />
+            <img
+              src={offer.driverAvatarUrl}
+              alt=""
+              width={48}
+              height={48}
+              className="h-12 w-12 rounded-full bg-gray-100 object-cover"
+            />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-600">
               {offer.driverName.slice(0, 1).toUpperCase()}
@@ -391,7 +425,7 @@ function RideOfferCard({
             type="button"
             onClick={onAccept}
             className={cn(
-              "flex-1 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95",
+              "poputi-btn-motion poputi-focus-ring flex-1 rounded-xl py-3 text-sm font-semibold active:scale-95",
               isPrimary
                 ? "bg-[#2787F5] text-white shadow-md shadow-[#2787F5]/20 hover:bg-[#1F6AD8]"
                 : "bg-gray-900 text-white shadow-md shadow-gray-900/20 hover:bg-gray-800"
@@ -414,22 +448,38 @@ function RideOfferCard({
 
 export function PublicProfileModal({ profile, onClose }: { profile: ChatData; onClose: () => void }) {
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
+    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 safe-area-bottom">
+      <button
+        type="button"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm motion-reduce:backdrop-blur-none"
+        aria-label="Закрыть профиль"
+        onClick={onClose}
+      />
       <div
-        className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl animate-in slide-in-from-bottom duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="public-profile-title"
+        className="relative w-full max-w-sm overscroll-contain rounded-[2rem] bg-white p-6 shadow-2xl motion-reduce:animate-none animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-4 mb-6">
           {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover shadow-lg" />
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              width={64}
+              height={64}
+              className="h-16 w-16 rounded-full object-cover shadow-lg"
+            />
           ) : (
             <div className="w-16 h-16 bg-[#2787F5] rounded-full flex items-center justify-center text-white font-bold text-2xl">
               {profile.avatar}
             </div>
           )}
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{profile.name}</h2>
+            <h2 id="public-profile-title" className="text-balance text-xl font-bold text-gray-900">
+              {profile.name}
+            </h2>
             <div className="flex items-center gap-1 mt-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <span key={star} className={`text-lg ${star <= Math.round(profile.rating) ? "text-yellow-400" : "text-gray-200"}`}>
@@ -459,8 +509,9 @@ export function PublicProfileModal({ profile, onClose }: { profile: ChatData; on
         </div>
 
         <button
+          type="button"
           onClick={onClose}
-          className="w-full mt-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-semibold transition-all hover:bg-gray-200 active:scale-95"
+          className="poputi-btn-motion poputi-focus-ring mt-4 w-full rounded-xl bg-gray-100 py-3 font-semibold text-gray-600 hover:bg-gray-200 active:scale-95"
         >
           Закрыть
         </button>

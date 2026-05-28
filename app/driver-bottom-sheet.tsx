@@ -164,7 +164,7 @@ export function DriverBottomSheet({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void sendOffer(val)}
-                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 transition-all hover:border-[#2787F5] hover:text-[#2787F5] active:bg-gray-50 disabled:opacity-50"
+                className="poputi-btn-motion poputi-focus-ring flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 hover:border-[#2787F5] hover:text-[#2787F5] active:bg-gray-50 disabled:opacity-50"
               >
                 +{val} ₽
               </button>
@@ -292,7 +292,7 @@ export function DriverBottomSheet({
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-3 font-medium text-red-600 active:bg-red-100 disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
-            {isDeleting ? "Удаление..." : "Удалить мою заявку"}
+            {isDeleting ? "Удаление…" : "Удалить мою заявку"}
           </button>
         )}
       </div>
