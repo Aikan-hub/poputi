@@ -1,7 +1,6 @@
 "use client"
 
 import { useLayoutEffect } from "react"
-import bridge from "@vkontakte/vk-bridge"
 
 declare global {
   interface Window {
@@ -32,9 +31,9 @@ function loadErudaDevTools() {
   document.body.appendChild(script)
 }
 
-function startVkInit(): Promise<boolean> {
+async function startVkInit(): Promise<boolean> {
   if (typeof window === "undefined") {
-    return Promise.resolve(false)
+    return false
   }
 
   if (window.__VK_INIT_PROMISE__) {
@@ -42,29 +41,29 @@ function startVkInit(): Promise<boolean> {
   }
 
   window.__VK_INIT_STARTED__ = true
-  window.__VK_INIT_PROMISE__ = bridge.send("VKWebAppInit")
-    .then(() => true)
-    .catch(() => {
-      return new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          bridge.send("VKWebAppInit")
-            .then(() => resolve(true))
-            .catch(() => resolve(false))
-        }, 500)
-      })
-    })
-    .then((ok) => {
-      window.__VK_INIT_READY__ = ok
-      if (ok) window.vkBridgeInitialized = true
-      window.dispatchEvent(new Event(ok ? "vk-bridge-ready" : "vk-bridge-failed"))
-      return ok
-    })
+  window.__VK_INIT_PROMISE__ = (async () => {
+    const { default: bridge } = await import("@vkontakte/vk-bridge")
+
+    const tryInit = () =>
+      bridge
+        .send("VKWebAppInit")
+        .then(() => true)
+        .catch(() => false)
+
+    let ok = await tryInit()
+    if (!ok) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      ok = await tryInit()
+    }
+
+    window.__VK_INIT_READY__ = ok
+    if (ok) window.vkBridgeInitialized = true
+    window.dispatchEvent(new Event(ok ? "vk-bridge-ready" : "vk-bridge-failed"))
+    return ok
+  })()
 
   return window.__VK_INIT_PROMISE__
 }
-
-// Start as early as possible (module evaluation on client).
-void startVkInit()
 
 export function AppBootstrap() {
   useLayoutEffect(() => {

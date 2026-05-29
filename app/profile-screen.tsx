@@ -21,6 +21,13 @@ import {
   TrainFront,
   Trophy,
 } from "lucide-react"
+import {
+  averageFromReviewRatings,
+  filledStarCount,
+  formatRatingDisplay,
+  hasHighRating,
+  ratingForLevel,
+} from "@/lib/profile-rating"
 import { calculateUserLevel } from "@/lib/user-level"
 import {
   DEFAULT_USER_SETTINGS,
@@ -78,9 +85,13 @@ export function ProfileScreen({
   const [driverCheckHint, setDriverCheckHint] = useState<string | null>(null)
   const [roleConfirmTarget, setRoleConfirmTarget] = useState<"driver" | "passenger" | null>(null)
   const [roleSwitching, setRoleSwitching] = useState(false)
-  const [profileStats, setProfileStats] = useState({
+  const [profileStats, setProfileStats] = useState<{
+    totalRides: number
+    averageRating: number | null
+    reviewsReceived: number
+  }>({
     totalRides: 0,
-    averageRating: 5,
+    averageRating: null,
     reviewsReceived: 0,
   })
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
@@ -99,19 +110,21 @@ export function ProfileScreen({
 
   const loadProfileStats = useCallback(async () => {
     if (!vkUser) {
-      setProfileStats({ totalRides: 0, averageRating: 5, reviewsReceived: 0 })
+      setProfileStats({ totalRides: 0, averageRating: null, reviewsReceived: 0 })
       return
     }
     const tag = vkIdTagFromNumericId(vkUser.id)
-    const [profRes, countRes] = await Promise.all([
-      supabase.from("profiles").select("total_rides, average_rating").eq("vk_id", tag).maybeSingle(),
-      supabase.from("reviews").select("*", { count: "exact", head: true }).eq("target_vk_id", tag),
+    const [profRes, reviewsRes] = await Promise.all([
+      supabase.from("profiles").select("total_rides").eq("vk_id", tag).maybeSingle(),
+      supabase.from("reviews").select("rating").eq("target_vk_id", tag),
     ])
-    const p = profRes.data as { total_rides?: number; average_rating?: number } | null
+    const p = profRes.data as { total_rides?: number } | null
+    const ratings = (reviewsRes.data ?? []).map((row) => Number((row as { rating: number }).rating))
+    const reviewsReceived = ratings.length
     setProfileStats({
       totalRides: p?.total_rides ?? 0,
-      averageRating: Number(p?.average_rating ?? 5),
-      reviewsReceived: countRes.count ?? 0,
+      averageRating: averageFromReviewRatings(ratings),
+      reviewsReceived,
     })
   }, [vkUser])
 
@@ -127,13 +140,19 @@ export function ProfileScreen({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || "")
     .join("") || "VK"
-  const level = calculateUserLevel(profileStats.totalRides, profileStats.averageRating)
+  const level = calculateUserLevel(
+    profileStats.totalRides,
+    ratingForLevel(profileStats.averageRating)
+  )
+  const starCount = filledStarCount(profileStats.averageRating)
+  const ratingLabel = formatRatingDisplay(profileStats.averageRating)
   const progressTarget = nextLevelTarget(profileStats.totalRides)
   const progressPct =
     progressTarget == null ? 100 : Math.min(100, Math.round((profileStats.totalRides / progressTarget) * 100))
   const trustBadges = buildTrustBadges(
     profileStats.totalRides,
     profileStats.averageRating,
+    profileStats.reviewsReceived,
     settings,
     isDriver
   )
@@ -230,10 +249,16 @@ export function ProfileScreen({
                   {isDriver ? <Car className="h-3.5 w-3.5" aria-hidden /> : null}
                   {isDriver ? "Водитель" : "Пассажир"}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/90">
-                  <Star className="h-3 w-3 fill-yellow-300 text-yellow-300" aria-hidden />
-                  {profileStats.averageRating.toFixed(1)}
-                </span>
+                {profileStats.reviewsReceived > 0 && profileStats.averageRating != null ? (
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/90">
+                    <Star className="h-3 w-3 fill-yellow-300 text-yellow-300" aria-hidden />
+                    {ratingLabel}
+                  </span>
+                ) : (
+                  <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/75">
+                    Нет отзывов
+                  </span>
+                )}
               </div>
 
               <h1 className="mt-2 truncate text-xl font-bold leading-tight tracking-tight sm:text-2xl">
@@ -371,11 +396,21 @@ export function ProfileScreen({
               <p className="text-xs font-semibold text-gray-500">Рейтинг</p>
               <div className="mt-1 flex items-center justify-center gap-0.5 text-yellow-400">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className={`h-4 w-4 ${s <= Math.round(profileStats.averageRating) ? "fill-current" : ""}`} />
+                  <Star
+                    key={s}
+                    className={cn(
+                      "h-4 w-4",
+                      s <= starCount ? "fill-current" : "text-gray-200"
+                    )}
+                  />
                 ))}
               </div>
-              <p className="mt-1 text-2xl font-bold text-gray-900">{profileStats.averageRating.toFixed(1)}</p>
-              <p className="text-xs text-gray-500">Отзывов: {profileStats.reviewsReceived}</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{ratingLabel}</p>
+              <p className="text-xs text-gray-500">
+                {profileStats.reviewsReceived === 0
+                  ? "Пока нет отзывов"
+                  : `Отзывов: ${profileStats.reviewsReceived}`}
+              </p>
             </div>
             <div className="rounded-xl bg-gray-50 p-4 text-center">
               <p className="text-xs font-semibold text-gray-500">Поездок</p>
@@ -391,7 +426,7 @@ export function ProfileScreen({
             title="Радар"
             caption="Фильтрует варианты на карте под ваш стиль поездок"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <SettingsInput
                 label="Радиус, км"
                 type="number"
@@ -939,14 +974,14 @@ function SettingsSection({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+    <section className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm">
+      <div className="mb-2.5 flex items-start gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
           {icon}
         </span>
         <div className="min-w-0">
-          <h3 className="font-bold text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500">{caption}</p>
+          <h3 className="text-[15px] font-bold leading-tight text-gray-900">{title}</h3>
+          <p className="mt-0.5 text-xs leading-snug text-gray-500">{caption}</p>
         </div>
       </div>
       {children}
@@ -1017,19 +1052,19 @@ function QuickRouteCard({
 
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-3.5 py-3">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <span
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-sm",
               meta.iconClass
             )}
           >
-            <Icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.25} aria-hidden />
+            <Icon className="h-4 w-4" strokeWidth={2.25} aria-hidden />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-gray-900">{route.label}</p>
-            <p className="text-[11px] text-gray-500">
+            <p className="truncate text-sm font-bold leading-tight text-gray-900">{route.label}</p>
+            <p className="text-[10px] leading-tight text-gray-500">
               {isFilled ? "Готов к подстановке в заявку" : isPartial ? "Дозаполните вторую точку" : "Шаблон маршрута"}
             </p>
           </div>
@@ -1044,13 +1079,13 @@ function QuickRouteCard({
         </span>
       </div>
 
-      <div className="relative px-3.5 py-3.5">
+      <div className="relative px-3 py-2.5">
         <div className="relative">
           <div
             className="pointer-events-none absolute left-2.5 top-6 bottom-6 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-gray-300 via-gray-200 to-[#2787F5]/70"
             aria-hidden
           />
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <QuickRoutePointField
               label="Откуда"
               value={route.from}
@@ -1088,11 +1123,11 @@ function QuickRoutePointField({
   const isTo = variant === "to"
 
   return (
-    <div className="flex items-stretch gap-3">
-      <div className="flex w-5 shrink-0 justify-center self-start pt-[1.125rem]">
+    <div className="flex items-stretch gap-2.5">
+      <div className="flex w-5 shrink-0 justify-center self-start pt-4">
         <span
           className={cn(
-            "relative z-10 box-border h-3 w-3 shrink-0 rounded-full border-2 shadow-sm",
+            "relative z-10 box-border h-2.5 w-2.5 shrink-0 rounded-full border-2 shadow-sm",
             isTo ? "border-[#2787F5] bg-[#2787F5]" : "border-gray-800 bg-white"
           )}
           aria-hidden
@@ -1100,18 +1135,18 @@ function QuickRoutePointField({
       </div>
       <label
         className={cn(
-          "min-w-0 flex-1 rounded-xl border bg-gray-50/80 px-3 py-2.5 transition-[border-color,background-color,box-shadow]",
+          "min-w-0 flex-1 rounded-lg border bg-gray-50/80 px-2.5 py-2 transition-[border-color,background-color,box-shadow]",
           "focus-within:border-[#2787F5]/35 focus-within:bg-white focus-within:shadow-sm focus-within:ring-2 focus-within:ring-[#2787F5]/12",
           value.trim() ? "border-gray-200" : "border-gray-100"
         )}
       >
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</span>
         <input
           type="text"
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-0.5 w-full border-0 bg-transparent text-sm font-semibold text-gray-900 placeholder:font-medium placeholder:text-gray-300 outline-none focus:ring-0"
+          className="mt-0.5 w-full border-0 bg-transparent py-0.5 text-sm font-semibold leading-tight text-gray-900 placeholder:font-medium placeholder:text-gray-300 outline-none focus:ring-0"
           aria-label={`${label}, ${placeholder}`}
         />
       </label>
@@ -1164,17 +1199,24 @@ function SettingsInput({
     }
 
     return (
-      <div className="rounded-2xl bg-gray-50 px-3 py-2">
-        <span className="text-xs font-semibold text-gray-500">{label}</span>
-        <div className="mt-1.5 flex items-center gap-2">
+      <div className="rounded-xl border border-gray-100 bg-gray-50/90 px-2 py-1.5">
+        <span className="block truncate text-[10px] font-semibold leading-tight text-gray-500">{label}</span>
+        <div className="mt-0.5 flex items-center gap-1">
           <button
             type="button"
             aria-label={`Уменьшить: ${label}`}
             disabled={atMin}
             onClick={() => applyDelta(-1)}
-            className="poputi-btn-motion poputi-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-gray-700 shadow-sm transition-colors hover:border-[#2787F5]/30 hover:text-[#2787F5] active:bg-[#F0F6FF] disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-100 disabled:text-gray-300 disabled:shadow-none"
+            className="poputi-btn-motion poputi-focus-ring flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center disabled:cursor-not-allowed"
           >
-            <Minus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            <span
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200/90 bg-white text-gray-600 shadow-sm",
+                atMin && "opacity-40"
+              )}
+            >
+              <Minus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+            </span>
           </button>
           <input
             type="text"
@@ -1196,7 +1238,7 @@ function SettingsInput({
               onBlur?.()
             }}
             className={cn(
-              "min-w-0 flex-1 border-0 bg-transparent text-center text-lg font-bold tabular-nums text-gray-900 outline-none focus:ring-0",
+              "min-w-0 flex-1 border-0 bg-transparent py-0.5 text-center text-base font-bold tabular-nums leading-none text-gray-900 outline-none focus:ring-0",
               error && "text-red-700"
             )}
             aria-invalid={error ? true : undefined}
@@ -1207,19 +1249,26 @@ function SettingsInput({
             aria-label={`Увеличить: ${label}`}
             disabled={atMax}
             onClick={() => applyDelta(1)}
-            className="poputi-btn-motion poputi-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#2787F5]/25 bg-[#2787F5] text-white shadow-md shadow-[#2787F5]/25 transition-colors hover:bg-[#1F6AD8] active:scale-95 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+            className="poputi-btn-motion poputi-focus-ring flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center disabled:cursor-not-allowed"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            <span
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-lg border border-[#2787F5]/30 bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20",
+                atMax && "opacity-40"
+              )}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+            </span>
           </button>
         </div>
-        {error ? <p className="mt-1 text-xs font-medium text-red-600">{error}</p> : null}
+        {error ? <p className="mt-0.5 text-[11px] font-medium text-red-600">{error}</p> : null}
       </div>
     )
   }
 
   return (
-    <label className="block rounded-2xl bg-gray-50 px-3 py-2 focus-within:outline-none focus-within:ring-0">
-      <span className="text-xs font-semibold text-gray-500">{label}</span>
+    <label className="block rounded-xl border border-gray-100 bg-gray-50/90 px-2.5 py-1.5 focus-within:border-[#2787F5]/30 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2787F5]/12">
+      <span className="text-[10px] font-semibold text-gray-500">{label}</span>
       <input
         type={type}
         inputMode={inputMode}
@@ -1229,12 +1278,12 @@ function SettingsInput({
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         className={cn(
-          "mt-1 w-full border-0 bg-transparent text-sm font-bold text-gray-900 shadow-none ring-0 ring-offset-0 placeholder:text-gray-300 outline-none focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0",
+          "mt-0.5 w-full border-0 bg-transparent py-0.5 text-sm font-semibold text-gray-900 shadow-none ring-0 ring-offset-0 placeholder:text-gray-300 outline-none focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0",
           error && "text-red-700"
         )}
         aria-invalid={error ? true : undefined}
       />
-      {error ? <p className="mt-1 text-xs font-medium text-red-600">{error}</p> : null}
+      {error ? <p className="mt-0.5 text-[11px] font-medium text-red-600">{error}</p> : null}
     </label>
   )
 }
@@ -1281,12 +1330,22 @@ function TogglePill({
       type="button"
       onClick={() => onChange(!checked)}
       className={cn(
-        "rounded-2xl px-3 py-2 text-left text-sm font-bold transition-colors",
-        checked ? "bg-[#2787F5] text-white" : "bg-gray-50 text-gray-500"
+        "flex min-h-[3.75rem] w-full touch-manipulation flex-col justify-between rounded-xl border px-2.5 py-2 text-left transition-[border-color,background-color,box-shadow]",
+        checked
+          ? "border-[#2787F5]/35 bg-[#F0F6FF] shadow-sm shadow-[#2787F5]/10"
+          : "border-gray-100 bg-gray-50/90"
       )}
       aria-pressed={checked}
     >
-      {label}
+      <span className="text-[10px] font-semibold leading-tight text-gray-500">{label}</span>
+      <span
+        className={cn(
+          "text-sm font-bold leading-none",
+          checked ? "text-[#2787F5]" : "text-gray-400"
+        )}
+      >
+        {checked ? "Вкл" : "Выкл"}
+      </span>
     </button>
   )
 }
@@ -1365,12 +1424,13 @@ function nextLevelTarget(totalRides: number): number | null {
 
 function buildTrustBadges(
   totalRides: number,
-  averageRating: number,
+  averageRating: number | null,
+  reviewsReceived: number,
   settings: UserSettings,
   isDriver: boolean
 ): string[] {
-  const badges = [calculateUserLevel(totalRides, averageRating)]
-  if (averageRating >= 4.8) badges.push("Высокий рейтинг")
+  const badges = [calculateUserLevel(totalRides, ratingForLevel(averageRating))]
+  if (hasHighRating(averageRating, reviewsReceived)) badges.push("Высокий рейтинг")
   if (totalRides >= 10) badges.push("Опытный попутчик")
   if (isValidRuPhone(settings.safety.trustedContactPhone) && settings.safety.trustedContactPhone.trim()) {
     badges.push("Контакт безопасности")

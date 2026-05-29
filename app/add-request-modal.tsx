@@ -15,7 +15,7 @@ import {
 import type { AddModalVariant, Mode, VkUserProfile } from "./types"
 import { vkIdTagFromNumericId } from "./helpers"
 import { BottomSheet, RouteTimeline, poputi } from "@/components/poputi/ui"
-import { MessageSquare, Navigation } from "lucide-react"
+import { Minus, Navigation, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 async function insertRideWithFallback(
@@ -30,6 +30,30 @@ async function insertRideWithFallback(
   const { total_seats: _a, available_seats: _b, depart_at: _d, car: _c, ...minimal } = legacyRow
   const third = await supabase.from("rides").insert([minimal])
   return { error: third.error }
+}
+
+const MIN_RIDE_PRICE = 90
+const PRICE_STEP = 10
+
+function normalizePriceDigits(raw: string): string {
+  return raw.replace(/\D/g, "")
+}
+
+function parseRidePrice(raw: string): number | null {
+  const digits = normalizePriceDigits(raw)
+  if (!digits) return null
+  return parseInt(digits, 10)
+}
+
+function isRidePriceValid(raw: string): boolean {
+  const n = parseRidePrice(raw)
+  return n != null && n >= MIN_RIDE_PRICE
+}
+
+function clampRidePrice(raw: string): number {
+  const n = parseRidePrice(raw)
+  if (n == null) return MIN_RIDE_PRICE
+  return Math.max(MIN_RIDE_PRICE, n)
 }
 
 export function AddRequestModal({
@@ -202,14 +226,14 @@ export function AddRequestModal({
   }
 
   const handleSubmitCityPassenger = async () => {
-    if (!whereStanding.trim() || !toCity.trim() || !price || isSubmitting) return
+    if (!whereStanding.trim() || !toCity.trim() || !isRidePriceValid(price) || isSubmitting) return
     if (!(await guardBanned())) return
 
     setIsSubmitting(true)
     setSubmitError(null)
 
     const coords = await resolveCoords(whereStanding.trim())
-    const priceNum = parseInt(price, 10)
+    const priceNum = clampRidePrice(price)
     const avatarUrl = vkUser?.photo_200 || null
 
     const fullRow = {
@@ -252,7 +276,7 @@ export function AddRequestModal({
   }
 
   const handleSubmitIntercity = async () => {
-    if (!price || !address.trim() || !to.trim() || isSubmitting) return
+    if (!isRidePriceValid(price) || !address.trim() || !to.trim() || isSubmitting) return
     if (!(await guardBanned())) return
 
     setIsSubmitting(true)
@@ -264,11 +288,12 @@ export function AddRequestModal({
     const departAtIso = departAtLocal ? new Date(departAtLocal).toISOString() : null
     const avatarUrl = vkUser?.photo_200 || null
     const driverNote = userRole === "Driver" ? buildDriverNote(settings) : ""
+    const priceNum = clampRidePrice(price)
 
     const fullRow: Record<string, unknown> = {
       lat: coords.lat,
       lng: coords.lng,
-      price: parseInt(price, 10),
+      price: priceNum,
       type: userRole,
       status: "searching",
       from_location: fromLoc,
@@ -287,7 +312,7 @@ export function AddRequestModal({
     const legacyRow: Record<string, unknown> = {
       lat: coords.lat,
       lng: coords.lng,
-      price: parseInt(price, 10),
+      price: priceNum,
       type: userRole,
       from_location: [fromLoc, comment.trim(), driverNote].filter(Boolean).join(" · ").slice(0, 320),
       to_location: toLoc,
@@ -393,99 +418,76 @@ export function AddRequestModal({
 
   if (variant === "cityPassenger") {
     return (
-      <BottomSheet onClose={onClose} className="max-h-[86vh] overflow-y-auto pb-12">
-          <h2 className="mb-6 text-xl font-bold text-gray-900">Куда поедем?</h2>
-          <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
-          <div className="space-y-3">
-            <RouteTimeline
-              from={whereStanding}
-              onFromChange={(v) => {
-                setWhereStanding(v)
-                setCityCoordsOverride(null)
-              }}
-              to={toCity}
-              onToChange={setToCity}
-              fromPlaceholder="Откуда забрать"
-              toPlaceholder="Куда едем?"
-              toExtra={
-                <Navigation className="pointer-events-none absolute right-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400" />
-              }
-            />
-            {citySuggestions.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                {citySuggestions.map((sug, idx) => (
-                  <button
-                    type="button"
-                    key={`${sug.text}-${idx}`}
-                    onClick={() => {
-                      setWhereStanding(sug.text)
-                      setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
-                      setCitySuggestions([])
-                    }}
-                    className="block w-full px-4 py-2.5 text-left text-sm text-gray-800 active:bg-gray-50"
-                  >
-                    {sug.text}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-4 flex gap-3">
-              <div className={cn(poputi.input, "flex-1")}>
-                <p className="mb-0.5 text-xs text-gray-500">Предложите цену</p>
-                <div className="flex items-baseline gap-1">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    name="city_passenger_price"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    aria-label="Предложите цену"
-                    className="w-full bg-transparent text-lg font-bold text-gray-900 focus-visible:outline-none focus-visible:ring-0"
-                    placeholder="400"
-                  />
-                  <span className="font-medium text-gray-500">₽</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className={cn(poputi.input, "flex flex-1 flex-col justify-center")}
-                onClick={() => {
-                  const el = document.getElementById("poputi-ride-comment")
-                  el?.focus()
-                }}
-              >
-                <div className="flex items-center gap-2 text-gray-500">
-                  <MessageSquare className="h-[18px] w-[18px]" />
-                  <span className="text-sm">Комментарий</span>
-                </div>
-              </button>
-            </div>
+      <BottomSheet onClose={onClose} className="max-h-[88vh] overflow-y-auto pb-10">
+        <header className="mb-3">
+          <h2 className="text-lg font-bold tracking-tight text-gray-900">Куда поедем?</h2>
+          <p className="mt-0.5 text-xs text-gray-500">По городу · водители увидят заявку на карте</p>
+        </header>
+
+        <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+          <RouteTimeline
+            from={whereStanding}
+            onFromChange={(v) => {
+              setWhereStanding(v)
+              setCityCoordsOverride(null)
+            }}
+            to={toCity}
+            onToChange={setToCity}
+            fromPlaceholder="Откуда забрать"
+            toPlaceholder="Куда едем?"
+            toExtra={
+              <Navigation className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            }
+          />
+          <AddressSuggestionsList
+            suggestions={citySuggestions}
+            onSelect={(sug) => {
+              setWhereStanding(sug.text)
+              setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
+              setCitySuggestions([])
+            }}
+          />
+        </section>
+
+        <section className="mt-2.5 space-y-2.5 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+          <RidePriceStepper value={price} onChange={setPrice} />
+          <div>
+            <label
+              htmlFor="poputi-ride-comment"
+              className="text-[10px] font-semibold uppercase tracking-wide text-gray-500"
+            >
+              Комментарий водителю
+            </label>
             <textarea
               id="poputi-ride-comment"
               name="city_passenger_comment"
-              placeholder="Комментарий для водителя…"
+              placeholder="Необязательно"
               value={comment}
               {...disableT9}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
-              aria-label="Комментарий для водителя"
-              className={cn(poputi.input, "mt-1 w-full resize-none")}
+              className={cn(poputi.input, "mt-1 w-full resize-none py-2.5 text-sm")}
             />
-            {submitError ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
-                {submitError}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => void handleSubmitCityPassenger()}
-              disabled={isSubmitting || !price || !whereStanding.trim() || !toCity.trim()}
-              className={cn(poputi.btnPrimary, "mt-2")}
-            >
-              {isSubmitting ? "Публикация…" : "Заказать"}
-            </button>
           </div>
-        </BottomSheet>
+        </section>
+
+        {submitError ? (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => void handleSubmitCityPassenger()}
+          disabled={isSubmitting || !isRidePriceValid(price) || !whereStanding.trim() || !toCity.trim()}
+          className={cn(poputi.btnPrimary, "mt-4 py-3.5 text-base")}
+        >
+          {isSubmitting ? "Публикация…" : "Заказать поездку"}
+        </button>
+      </BottomSheet>
     )
   }
 
@@ -526,16 +528,7 @@ export function AddRequestModal({
           className={cn(poputi.input, "w-full")}
         />
         <p className="-mt-2 text-xs text-gray-500">Время выезда (необязательно)</p>
-        <input
-          type="number"
-          inputMode="numeric"
-          name="intercity_price"
-          placeholder="Цена за место (₽)…"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          aria-label="Цена за место"
-          className={cn(poputi.input, "w-full")}
-        />
+        <RidePriceStepper value={price} onChange={setPrice} label="Цена за место" />
         <input
           type="text"
           name="intercity_car"
@@ -580,7 +573,7 @@ export function AddRequestModal({
       <button
         type="button"
         onClick={() => void handleSubmitIntercity()}
-        disabled={isSubmitting || !price || !address.trim() || !to.trim()}
+        disabled={isSubmitting || !isRidePriceValid(price) || !address.trim() || !to.trim()}
         className={cn(poputi.btnPrimary, "mt-4")}
       >
         {isSubmitting ? "Публикация…" : "Опубликовать в межгород"}
@@ -596,21 +589,118 @@ function RouteTemplatePicker({
   routes: RouteTemplate[]
   onSelect: (route: RouteTemplate) => void
 }) {
-  const filledRoutes = routes.filter((route) => route.from.trim() || route.to.trim())
-  if (filledRoutes.length === 0) return null
+  if (routes.length === 0) return null
 
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-      {filledRoutes.map((route) => (
-        <button
-          key={route.id}
-          type="button"
-          onClick={() => onSelect(route)}
-          className="poputi-focus-ring shrink-0 rounded-full bg-[#F0F6FF] px-3 py-2 text-xs font-bold text-[#2787F5] active:bg-[#DCEBFF]"
-        >
-          {route.label}
-        </button>
+    <div className="mb-3 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {routes.map((route) => {
+        const hasPoints = Boolean(route.from.trim() || route.to.trim())
+        return (
+          <button
+            key={route.id}
+            type="button"
+            onClick={() => onSelect(route)}
+            className={cn(
+              "poputi-focus-ring shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors active:scale-[0.98]",
+              hasPoints
+                ? "border-[#2787F5]/30 bg-[#F0F6FF] text-[#2787F5]"
+                : "border-gray-200 bg-gray-50 text-gray-500"
+            )}
+          >
+            {route.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function AddressSuggestionsList({
+  suggestions,
+  onSelect,
+}: {
+  suggestions: { text: string; lat: number; lng: number }[]
+  onSelect: (item: { text: string; lat: number; lng: number }) => void
+}) {
+  if (suggestions.length === 0) return null
+
+  return (
+    <ul className="mt-2 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80">
+      {suggestions.map((sug, idx) => (
+        <li key={`${sug.text}-${idx}`}>
+          <button
+            type="button"
+            onClick={() => onSelect(sug)}
+            className="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-800 last:border-0 active:bg-white"
+          >
+            {sug.text}
+          </button>
+        </li>
       ))}
+    </ul>
+  )
+}
+
+function RidePriceStepper({
+  value,
+  onChange,
+  label = "Ваша цена",
+}: {
+  value: string
+  onChange: (value: string) => void
+  label?: string
+}) {
+  const numeric = parseRidePrice(value) ?? MIN_RIDE_PRICE
+  const atMin = numeric <= MIN_RIDE_PRICE
+
+  const bump = (delta: number) => {
+    onChange(String(clampRidePrice(String(numeric + delta * PRICE_STEP))))
+  }
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        <p className="text-[10px] text-gray-400">от {MIN_RIDE_PRICE} ₽</p>
+      </div>
+      <div className="flex items-center gap-1.5 rounded-xl border border-gray-100 bg-gray-50/90 px-2 py-1.5">
+        <button
+          type="button"
+          aria-label="Уменьшить цену"
+          disabled={atMin}
+          onClick={() => bump(-1)}
+          className="poputi-focus-ring flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center disabled:opacity-40"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm">
+            <Minus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+          </span>
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => onChange(normalizePriceDigits(e.target.value))}
+          onBlur={() => {
+            if (!value) return
+            onChange(String(clampRidePrice(value)))
+          }}
+          aria-label={label}
+          aria-invalid={value.length > 0 && !isRidePriceValid(value) ? true : undefined}
+          className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-center text-xl font-bold tabular-nums leading-none text-gray-900 outline-none focus:ring-0"
+          placeholder={String(MIN_RIDE_PRICE)}
+        />
+        <span className="shrink-0 pr-0.5 text-sm font-semibold text-gray-500">₽</span>
+        <button
+          type="button"
+          aria-label="Увеличить цену"
+          onClick={() => bump(1)}
+          className="poputi-focus-ring flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#2787F5]/30 bg-[#2787F5] text-white shadow-sm shadow-[#2787F5]/20">
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+          </span>
+        </button>
+      </div>
     </div>
   )
 }

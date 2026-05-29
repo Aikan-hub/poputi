@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { averageFromReviewRatings } from "@/lib/profile-rating"
 
 export interface UserProfileRow {
   vk_id: string
@@ -35,18 +36,21 @@ async function upsertProfilePartial(
   return error
 }
 
-/** Средняя оценка по всем отзывам на пользователя. */
-export async function computeAverageRatingForTarget(supabase: SupabaseClient, targetVkId: string): Promise<number> {
+/** Средняя оценка по всем отзывам на пользователя. Без отзывов — null. */
+export async function computeAverageRatingForTarget(
+  supabase: SupabaseClient,
+  targetVkId: string
+): Promise<number | null> {
   const { data, error } = await supabase.from("reviews").select("rating").eq("target_vk_id", targetVkId)
-  if (error || !data?.length) return 5
-  const sum = data.reduce((acc, r: { rating: number }) => acc + Number(r.rating), 0)
-  return Math.round((sum / data.length) * 100) / 100
+  if (error || !data?.length) return null
+  const ratings = data.map((r: { rating: number }) => Number(r.rating))
+  return averageFromReviewRatings(ratings)
 }
 
 export async function bumpTotalRides(supabase: SupabaseClient, vkId: string): Promise<void> {
   const existing = await getProfile(supabase, vkId)
   const next = (existing?.total_rides ?? 0) + 1
-  const avg = existing?.average_rating ?? 5
+  const avg = (await computeAverageRatingForTarget(supabase, vkId)) ?? 0
   await upsertProfilePartial(supabase, vkId, { total_rides: next, average_rating: avg })
 }
 
@@ -93,11 +97,11 @@ export async function submitRideReview(params: {
 
   await upsertProfilePartial(supabase, targetVkId, {
     total_rides: targetProf?.total_rides,
-    average_rating: newAvgTarget,
+    average_rating: newAvgTarget ?? 0,
   })
   await upsertProfilePartial(supabase, reviewerVkId, {
     total_rides: reviewerProf?.total_rides,
-    average_rating: newAvgReviewer,
+    average_rating: newAvgReviewer ?? 0,
   })
 
   return { ok: true }

@@ -86,34 +86,54 @@ export function RouteTimeline({
   toPlaceholder?: string
   toExtra?: ReactNode
 }) {
+  const fieldClass = cn(poputi.input, "py-2.5 text-sm font-medium")
+
   return (
-    <div className="relative pl-10">
-      <div className="absolute bottom-9 left-4 top-3 flex w-0.5 flex-col items-center bg-gray-200">
-        <div className="absolute -left-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-gray-800" />
-        <div className="absolute -bottom-0.5 -left-1 h-2.5 w-2.5 rounded-full bg-[#2787F5]" />
-      </div>
-      <input
-        type="text"
-        name="route_from"
-        autoComplete="off"
-        value={from}
-        onChange={(e) => onFromChange(e.target.value)}
-        placeholder={fromPlaceholder}
-        aria-label={fromPlaceholder}
-        className={cn(poputi.input, "mb-2 w-full")}
+    <div className="relative">
+      <div
+        className="pointer-events-none absolute left-2.5 top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-gray-300 via-gray-200 to-[#2787F5]"
+        aria-hidden
       />
-      <div className="relative">
-        <input
-          type="text"
-          name="route_to"
-          autoComplete="off"
-          value={to}
-          onChange={(e) => onToChange(e.target.value)}
-          placeholder={toPlaceholder}
-          aria-label={toPlaceholder}
-          className={cn(poputi.input, "w-full pr-10")}
-        />
-        {toExtra}
+      <div className="space-y-2">
+        <div className="flex items-stretch gap-2.5">
+          <div className="flex w-5 shrink-0 justify-center self-center">
+            <span
+              className="box-border h-2.5 w-2.5 shrink-0 rounded-full border-2 border-gray-800 bg-white shadow-sm"
+              aria-hidden
+            />
+          </div>
+          <input
+            type="text"
+            name="route_from"
+            autoComplete="off"
+            value={from}
+            onChange={(e) => onFromChange(e.target.value)}
+            placeholder={fromPlaceholder}
+            aria-label={fromPlaceholder}
+            className={cn(fieldClass, "min-w-0 flex-1")}
+          />
+        </div>
+        <div className="flex items-stretch gap-2.5">
+          <div className="flex w-5 shrink-0 justify-center self-center">
+            <span
+              className="box-border h-2.5 w-2.5 shrink-0 rounded-full border-2 border-[#2787F5] bg-[#2787F5] shadow-sm"
+              aria-hidden
+            />
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <input
+              type="text"
+              name="route_to"
+              autoComplete="off"
+              value={to}
+              onChange={(e) => onToChange(e.target.value)}
+              placeholder={toPlaceholder}
+              aria-label={toPlaceholder}
+              className={cn(fieldClass, "w-full pr-9")}
+            />
+            {toExtra}
+          </div>
+        </div>
       </div>
     </div>
   )

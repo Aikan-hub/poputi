@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-import { AppBootstrap } from './vk-bootstrap'
+import { AppBootstrapLoader } from "./app-bootstrap-loader"
 
 export const metadata: Metadata = {
   title: 'Попути - Поиск попутчиков',
@@ -34,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className="font-sans antialiased">
-        <AppBootstrap />
+        <AppBootstrapLoader />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
