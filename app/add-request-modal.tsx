@@ -5,7 +5,6 @@ import { assertNotBanned, BANNED_USER_MESSAGE } from "@/lib/banned-users"
 import { geocodeAddress, randomCoordsNearCity } from "@/lib/geocode"
 import { supabase } from "@/lib/supabase-client"
 import { APP_CITY_COORDS, type AppCity } from "@/lib/cities"
-import { getYandexMapsApiKey } from "@/lib/env"
 import {
   DEFAULT_USER_SETTINGS,
   loadUserSettings,
@@ -93,8 +92,6 @@ export function AddRequestModal({
   const [seatCount, setSeatCount] = useState(3)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [citySuggestions, setCitySuggestions] = useState<{ text: string; lat: number; lng: number }[]>([])
-  const [cityCoordsOverride, setCityCoordsOverride] = useState<{ lat: number; lng: number } | null>(null)
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
 
   const vkTag = vkUser?.id ? vkIdTagFromNumericId(vkUser.id) : ""
@@ -115,48 +112,12 @@ export function AddRequestModal({
     } else {
       setWhereStanding(route.from)
       setToCity(route.to)
-      setCityCoordsOverride(null)
     }
   }
-
-  useEffect(() => {
-    if (variant !== "cityDriver" && variant !== "cityPassenger") return
-    const q = whereStanding.trim()
-    if (q.length < 3) {
-      setCitySuggestions([])
-      return
-    }
-    const handle = setTimeout(async () => {
-      try {
-        const resp = await fetch(
-          `https://geocode-maps.yandex.ru/1.x/?apikey=${getYandexMapsApiKey()}&format=json&geocode=${encodeURIComponent(`${city}, ${q}`)}`
-        )
-        const data = await resp.json()
-        const members = data.response?.GeoObjectCollection?.featureMember || []
-        const items = members.slice(0, 5).map((m: { GeoObject?: { name?: string; metaDataProperty?: { GeocoderMetaData?: { text?: string } }; Point?: { pos?: string } } }) => {
-          const name = m.GeoObject?.name
-          const text = m.GeoObject?.metaDataProperty?.GeocoderMetaData?.text
-          const pos = m.GeoObject?.Point?.pos
-          if (!pos) return null
-          const [lngStr, latStr] = pos.split(" ")
-          return {
-            text: text || name || q,
-            lat: parseFloat(latStr),
-            lng: parseFloat(lngStr),
-          }
-        })
-        setCitySuggestions(items.filter(Boolean) as { text: string; lat: number; lng: number }[])
-      } catch {
-        setCitySuggestions([])
-      }
-    }, 400)
-    return () => clearTimeout(handle)
-  }, [variant, whereStanding, city])
 
   const resolveCoords = async (addr: string) => {
     const geocoded = await geocodeAddress(city, addr)
     if (geocoded) return geocoded
-    if (cityCoordsOverride) return cityCoordsOverride
     if (pinCoords) return pinCoords
     return randomCoordsNearCity(city)
   }
@@ -176,8 +137,8 @@ export function AddRequestModal({
     if (!(await guardBanned())) return
 
     const [fallbackLat, fallbackLng] = APP_CITY_COORDS[city]
-    const lat = cityCoordsOverride?.lat ?? pinCoords?.lat ?? fallbackLat
-    const lng = cityCoordsOverride?.lng ?? pinCoords?.lng ?? fallbackLng
+    const lat = pinCoords?.lat ?? fallbackLat
+    const lng = pinCoords?.lng ?? fallbackLng
 
     setIsSubmitting(true)
     setSubmitError(null)
@@ -345,30 +306,9 @@ export function AddRequestModal({
             placeholder="Где я стою (ориентир)"
             value={whereStanding}
             {...disableT9}
-            onChange={(e) => {
-              setWhereStanding(e.target.value)
-              setCityCoordsOverride(null)
-            }}
+            onChange={(e) => setWhereStanding(e.target.value)}
             className={cn(poputi.input, "w-full")}
           />
-          {citySuggestions.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              {citySuggestions.map((sug, idx) => (
-                <button
-                  type="button"
-                  key={`${sug.text}-${idx}`}
-                  onClick={() => {
-                    setWhereStanding(sug.text)
-                    setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
-                    setCitySuggestions([])
-                  }}
-                  className="block w-full px-4 py-2.5 text-left text-sm text-gray-800 active:bg-gray-50"
-                >
-                  {sug.text}
-                </button>
-              ))}
-            </div>
-          )}
           <input
             type="text"
             placeholder="Куда еду по городу"
@@ -429,10 +369,7 @@ export function AddRequestModal({
         <section className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
           <RouteTimeline
             from={whereStanding}
-            onFromChange={(v) => {
-              setWhereStanding(v)
-              setCityCoordsOverride(null)
-            }}
+            onFromChange={setWhereStanding}
             to={toCity}
             onToChange={setToCity}
             fromPlaceholder="Откуда забрать"
@@ -440,14 +377,6 @@ export function AddRequestModal({
             toExtra={
               <Navigation className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             }
-          />
-          <AddressSuggestionsList
-            suggestions={citySuggestions}
-            onSelect={(sug) => {
-              setWhereStanding(sug.text)
-              setCityCoordsOverride({ lat: sug.lat, lng: sug.lng })
-              setCitySuggestions([])
-            }}
           />
         </section>
 
@@ -612,32 +541,6 @@ function RouteTemplatePicker({
         )
       })}
     </div>
-  )
-}
-
-function AddressSuggestionsList({
-  suggestions,
-  onSelect,
-}: {
-  suggestions: { text: string; lat: number; lng: number }[]
-  onSelect: (item: { text: string; lat: number; lng: number }) => void
-}) {
-  if (suggestions.length === 0) return null
-
-  return (
-    <ul className="mt-2 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/80">
-      {suggestions.map((sug, idx) => (
-        <li key={`${sug.text}-${idx}`}>
-          <button
-            type="button"
-            onClick={() => onSelect(sug)}
-            className="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-800 last:border-0 active:bg-white"
-          >
-            {sug.text}
-          </button>
-        </li>
-      ))}
-    </ul>
   )
 }
 
