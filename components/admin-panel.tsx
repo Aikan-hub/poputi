@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Activity,
   ArrowLeft,
@@ -90,6 +91,7 @@ export function AdminPanel({
   /** Вызвать после изменений в `rides`, чтобы обновить карту в родителе */
   onRidesChanged?: () => void
 }) {
+  const router = useRouter()
   const embedded = variant === "embedded"
   const [mounted, setMounted] = useState(false)
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -191,6 +193,14 @@ export function AdminPanel({
     setIsAuthorized(false)
     setRides([])
   }
+
+  const exitAdmin = useCallback(() => {
+    if (onBackToMap) {
+      onBackToMap()
+      return
+    }
+    router.push("/")
+  }, [onBackToMap, router])
 
   const handleDeleteOne = async (id: number) => {
     setDeletingId(id)
@@ -318,29 +328,49 @@ export function AdminPanel({
   if (!isAuthorized) {
     return (
       <div className={loginShellClass}>
-        <div className="w-full max-w-md rounded-2xl border border-[#E1E3E6] bg-white p-8 shadow-xl">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
-              <Shield className="h-7 w-7" />
+        <div className="w-full max-w-md">
+          <button
+            type="button"
+            onClick={exitAdmin}
+            className="poputi-focus-ring mb-4 inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold text-[#818C99] transition-colors hover:bg-white/80 hover:text-[#2C2D2E]"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            На главную
+          </button>
+
+          <div className="rounded-2xl border border-[#E1E3E6] bg-white p-8 shadow-xl">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+                <Shield className="h-7 w-7" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-[#2C2D2E]">Попути — Админ</h1>
+                <p className="text-sm text-[#818C99]">Авторизация</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-[#2C2D2E]">Попути — Админ</h1>
-              <p className="text-sm text-[#818C99]">Авторизация</p>
-            </div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] placeholder:text-[#818C99] focus-visible:ring-[#2787F5]"
+                placeholder="Пароль"
+                autoComplete="current-password"
+              />
+              {loginError && <p className="text-sm text-[#E64646]">{loginError}</p>}
+              <Button type="submit" className="w-full bg-[#2787F5] font-bold text-white hover:bg-[#1F6AD8]">
+                Войти
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={exitAdmin}
+                className="w-full text-[#818C99] hover:bg-[#F2F3F5] hover:text-[#2C2D2E]"
+              >
+                Отмена
+              </Button>
+            </form>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border-transparent bg-[#F2F3F5] text-[#2C2D2E] placeholder:text-[#818C99] focus-visible:ring-[#2787F5]"
-              placeholder="Пароль"
-            />
-            {loginError && <p className="text-sm text-[#E64646]">{loginError}</p>}
-            <Button type="submit" className="w-full bg-[#2787F5] font-bold text-white hover:bg-[#1F6AD8]">
-              Войти
-            </Button>
-          </form>
         </div>
       </div>
     )
@@ -351,14 +381,20 @@ export function AdminPanel({
       <header className="shrink-0 border-b border-[#D3D9DE]/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
         <div className={embedded ? "flex items-center justify-between gap-2" : "mx-auto flex max-w-6xl items-center justify-between"}>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            {embedded && onBackToMap && (
-              <Button type="button" variant="outline" size="sm" onClick={onBackToMap} className="shrink-0 border-[#D3D9DE] bg-white text-[#2C2D2E] hover:bg-[#F2F3F5]">
+            {onBackToMap ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onBackToMap}
+                className="shrink-0 border-[#D3D9DE] bg-white text-[#2C2D2E] hover:bg-[#F2F3F5]"
+              >
                 <ArrowLeft className="mr-1 h-4 w-4" />
                 <MapIcon className="mr-1 hidden h-4 w-4 sm:inline" />
-                <span className="hidden sm:inline">Назад на карту</span>
-                <span className="sm:hidden">Карта</span>
+                <span className="hidden sm:inline">{embedded ? "Назад на карту" : "На главную"}</span>
+                <span className="sm:hidden">{embedded ? "Карта" : "Назад"}</span>
               </Button>
-            )}
+            ) : null}
             <Shield className="h-6 w-6 shrink-0 text-[#2787F5]" />
             <h1 className="truncate text-lg font-bold text-[#2C2D2E]">Центр управления</h1>
           </div>

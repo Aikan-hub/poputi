@@ -1,14 +1,16 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import type { ReactNode } from "react"
 import { YMaps, Map as YMap } from "@pbe/react-yandex-maps"
-import { MapPin, Plus } from "lucide-react"
+import { Activity, Clock3, MapPin, Navigation, Plus, Route, WalletCards } from "lucide-react"
 import { FloatingMapChrome, poputi } from "@/components/poputi/ui"
 import { DriverActiveRideBar } from "@/components/poputi/driver-active-bar"
 import { cn } from "@/lib/utils"
 import { isPersistentRideType } from "@/lib/rides"
 import { normalizeRideStatus } from "@/lib/ride-status"
 import { APP_CITY_COORDS, type AppCity } from "@/lib/cities"
+import { DEFAULT_USER_SETTINGS, loadUserSettings, type UserSettings } from "@/lib/user-settings"
 import type { DriverData, Mode, SupabaseRide, VkUserProfile } from "./types"
 import { parseRideCoords, matchesCity, cityBoundsKm, getAvatarLabel, vkIdTagFromNumericId, isCityMapRide } from "./helpers"
 import { getYandexMapsApiKey } from "@/lib/env"
@@ -234,6 +236,7 @@ function CityMapView({
     []
   )
   const [isYandexReady, setIsYandexReady] = useState(false)
+  const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
   const yandexReadyRef = useRef(false)
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -366,6 +369,10 @@ function CityMapView({
     }
   }, [myActiveDriverRide])
 
+  const rideRadar = useMemo(
+    () => buildRideRadar(mapMarkers.markers, cityCoords, userSettings.radar),
+    [mapMarkers.markers, cityCoords, userSettings.radar]
+  )
   const isPassenger = userRole !== "Driver"
   const showPassengerTeaser = isPassenger && !showAddRequest && !selectedDriver && !myActiveDriverRide
 
@@ -374,6 +381,10 @@ function CityMapView({
     setIsYandexReady(false)
     mapInstanceRef.current = null
   }, [city])
+
+  useEffect(() => {
+    setUserSettings(loadUserSettings())
+  }, [])
 
   useEffect(() => {
     if (!showAddRequest) return
@@ -457,17 +468,11 @@ function CityMapView({
       )}
 
       {showPassengerTeaser && (
-        <button
-          type="button"
-          onClick={() => setShowAddRequest(true)}
-          className={cn(
-            "absolute bottom-0 left-0 right-0 z-10 px-6 pb-8 pt-4 text-left",
-            poputi.sheet
-          )}
-        >
-          <h2 className="text-xl font-bold text-gray-900">Куда поедем?</h2>
-          <p className="mt-1 text-sm text-gray-500">Нажмите, чтобы указать маршрут и цену</p>
-        </button>
+        <RideRadarPanel
+          radar={rideRadar}
+          onCreateRequest={() => setShowAddRequest(true)}
+          onSelectRide={(driver) => setSelectedDriver(driver)}
+        />
       )}
 
       {userRole === "Driver" && !myActiveDriverRide && (
@@ -547,4 +552,240 @@ function CityMapView({
       )}
     </div>
   )
+}
+
+type RideRadarMarker = {
+  driver: DriverData
+  persistent: boolean
+  createdAt: string
+}
+
+type RideRadarItem = {
+  driver: DriverData
+  routeTitle: string
+  meta: string
+  priceLabel: string
+  distanceLabel: string
+  freshnessLabel: string
+  score: number
+}
+
+type RideRadar = {
+  total: number
+  freshCount: number
+  averagePriceLabel: string
+  items: RideRadarItem[]
+}
+
+function RideRadarPanel({
+  radar,
+  onCreateRequest,
+  onSelectRide,
+}: {
+  radar: RideRadar
+  onCreateRequest: () => void
+  onSelectRide: (driver: DriverData) => void
+}) {
+  const hasRides = radar.total > 0
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-4">
+      <div className={cn(poputi.sheet, "overflow-hidden rounded-[1.75rem] px-4 pb-4 pt-3")}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#2787F5]">
+              <Activity className="h-3.5 w-3.5" aria-hidden />
+              <span>Радар поездок</span>
+            </div>
+            <h2 className="mt-1 truncate text-xl font-bold text-gray-900">
+              {hasRides
+                ? `${radar.total} ${pluralizeRu(radar.total, "вариант", "варианта", "вариантов")} рядом`
+                : "Куда поедем?"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onCreateRequest}
+            className="poputi-focus-ring flex shrink-0 items-center gap-1.5 rounded-full bg-[#2787F5] px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/25 transition-transform motion-reduce:active:scale-100 active:scale-95"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Заявка
+          </button>
+        </div>
+
+        {hasRides ? (
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <RadarStat
+                icon={<Navigation className="h-4 w-4" aria-hidden />}
+                label="На карте"
+                value={String(radar.total)}
+              />
+              <RadarStat
+                icon={<WalletCards className="h-4 w-4" aria-hidden />}
+                label="Средняя"
+                value={radar.averagePriceLabel}
+              />
+              <RadarStat
+                icon={<Clock3 className="h-4 w-4" aria-hidden />}
+                label="Свежие"
+                value={String(radar.freshCount)}
+              />
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {radar.items.map((item) => (
+                <button
+                  type="button"
+                  key={`${item.driver.id}-${item.driver.supabaseId ?? "ride"}`}
+                  onClick={() => onSelectRide(item.driver)}
+                  className="poputi-focus-ring flex w-full items-center gap-3 rounded-2xl bg-gray-50 px-3 py-2.5 text-left transition-colors hover:bg-gray-100"
+                  aria-label={`Открыть поездку ${item.routeTitle}`}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#2787F5] shadow-sm ring-1 ring-gray-100">
+                    <Route className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold text-gray-900">{item.routeTitle}</div>
+                    <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs font-medium text-gray-500">
+                      <span className="truncate">{item.meta}</span>
+                      <span className="shrink-0 text-gray-300">•</span>
+                      <span className="shrink-0">{item.distanceLabel}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-bold text-gray-900">{item.priceLabel}</div>
+                    <div className="text-xs font-medium text-gray-400">{item.freshnessLabel}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onCreateRequest}
+            className="mt-3 w-full rounded-2xl bg-gray-50 px-4 py-4 text-left transition-colors hover:bg-gray-100"
+          >
+            <div className="text-sm font-bold text-gray-900">Создать заявку</div>
+            <div className="mt-1 text-sm text-gray-500">Укажите маршрут и цену, водители увидят ее на карте</div>
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RadarStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-gray-50 px-3 py-2">
+      <div className="flex items-center gap-1.5 text-gray-400">
+        {icon}
+        <span className="truncate text-[11px] font-semibold">{label}</span>
+      </div>
+      <div className="mt-1 truncate text-sm font-bold text-gray-900">{value}</div>
+    </div>
+  )
+}
+
+function buildRideRadar(
+  markers: RideRadarMarker[],
+  cityCenter: [number, number],
+  radarSettings: UserSettings["radar"]
+): RideRadar {
+  const scoredMarkers = markers
+    .map((marker) => {
+      const createdAt = new Date(marker.createdAt).getTime()
+      const ageMinutes = Number.isFinite(createdAt) ? Math.max(0, Math.floor((Date.now() - createdAt) / 60000)) : 999
+      const distanceKm = distanceKmBetween(cityCenter, marker.driver.coords)
+      return { marker, ageMinutes, distanceKm }
+    })
+    .filter(({ marker, ageMinutes, distanceKm }) => {
+      if (distanceKm > radarSettings.radiusKm) return false
+      if (marker.driver.rating < radarSettings.minRating) return false
+      if (radarSettings.maxPrice > 0 && marker.driver.price > radarSettings.maxPrice) return false
+      if (radarSettings.freshOnly && ageMinutes > 15 && !marker.persistent) return false
+      return true
+    })
+
+  const pricedMarkers = scoredMarkers.filter(({ marker }) => marker.driver.price > 0)
+  const averagePrice =
+    pricedMarkers.length > 0
+      ? Math.round(pricedMarkers.reduce((sum, { marker }) => sum + marker.driver.price, 0) / pricedMarkers.length)
+      : 0
+
+  const items = scoredMarkers
+    .map(({ marker, ageMinutes, distanceKm }) => {
+      const driver = marker.driver
+      const priceScore = driver.price > 0 ? driver.price / 1000 : 0.8
+      const persistentBonus = marker.persistent ? -0.35 : 0
+      const score = distanceKm * 1.15 + ageMinutes * 0.035 + priceScore + persistentBonus
+
+      return {
+        driver,
+        routeTitle: routeTitle(driver),
+        meta: [driver.name || "Пользователь", driver.car && driver.car !== "Авто" ? driver.car : null]
+          .filter(Boolean)
+          .join(" · "),
+        priceLabel: driver.price > 0 ? `${driver.price} ₽` : "В чате",
+        distanceLabel: formatDistance(distanceKm),
+        freshnessLabel: formatFreshness(ageMinutes),
+        score,
+      }
+    })
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3)
+
+  return {
+    total: scoredMarkers.length,
+    freshCount: scoredMarkers.filter(({ ageMinutes }) => ageMinutes <= 15).length,
+    averagePriceLabel: averagePrice > 0 ? `${averagePrice} ₽` : "—",
+    items,
+  }
+}
+
+function routeTitle(driver: DriverData): string {
+  const from = driver.fromLocation?.trim()
+  const to = driver.toLocation?.trim()
+  if (from && to) return `${from} → ${to}`
+  if (to) return `До ${to}`
+  if (from) return `От ${from}`
+  return driver.rideType === "Driver" ? "Водитель на линии" : "Поездка по городу"
+}
+
+function formatDistance(distanceKm: number): string {
+  if (!Number.isFinite(distanceKm)) return "рядом"
+  if (distanceKm < 1) return `${Math.max(100, Math.round(distanceKm * 1000 / 50) * 50)} м`
+  return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} км`
+}
+
+function formatFreshness(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes > 180) return "давно"
+  if (minutes < 1) return "сейчас"
+  if (minutes < 60) return `${minutes} мин`
+  return `${Math.floor(minutes / 60)} ч`
+}
+
+function distanceKmBetween(a: [number, number], b: [number, number]): number {
+  const earthRadiusKm = 6371
+  const dLat = toRadians(b[0] - a[0])
+  const dLng = toRadians(b[1] - a[1])
+  const lat1 = toRadians(a[0])
+  const lat2 = toRadians(b[0])
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180
+}
+
+function pluralizeRu(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
 }

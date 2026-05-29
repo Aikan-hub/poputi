@@ -6,6 +6,12 @@ import { geocodeAddress, randomCoordsNearCity } from "@/lib/geocode"
 import { supabase } from "@/lib/supabase-client"
 import { APP_CITY_COORDS, type AppCity } from "@/lib/cities"
 import { getYandexMapsApiKey } from "@/lib/env"
+import {
+  DEFAULT_USER_SETTINGS,
+  loadUserSettings,
+  type RouteTemplate,
+  type UserSettings,
+} from "@/lib/user-settings"
 import type { AddModalVariant, Mode, VkUserProfile } from "./types"
 import { vkIdTagFromNumericId } from "./helpers"
 import { BottomSheet, RouteTimeline, poputi } from "@/components/poputi/ui"
@@ -65,8 +71,29 @@ export function AddRequestModal({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [citySuggestions, setCitySuggestions] = useState<{ text: string; lat: number; lng: number }[]>([])
   const [cityCoordsOverride, setCityCoordsOverride] = useState<{ lat: number; lng: number } | null>(null)
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
 
   const vkTag = vkUser?.id ? vkIdTagFromNumericId(vkUser.id) : ""
+
+  useEffect(() => {
+    const loaded = loadUserSettings()
+    setSettings(loaded)
+    setCitySeats(loaded.driver.seats)
+    setSeatCount(loaded.driver.seats)
+    const carLabel = [loaded.driver.carModel, loaded.driver.carColor].filter(Boolean).join(", ")
+    if (carLabel) setCarModel(carLabel)
+  }, [])
+
+  const applyRouteTemplate = (route: RouteTemplate) => {
+    if (variant === "intercity") {
+      setAddress(route.from)
+      setTo(route.to)
+    } else {
+      setWhereStanding(route.from)
+      setToCity(route.to)
+      setCityCoordsOverride(null)
+    }
+  }
 
   useEffect(() => {
     if (variant !== "cityDriver" && variant !== "cityPassenger") return
@@ -133,6 +160,7 @@ export function AddRequestModal({
 
     const fromBase = whereStanding.trim()
     const avatarUrl = vkUser?.photo_200 || null
+    const driverNote = buildDriverNote(settings)
     const fullRow = {
       lat,
       lng,
@@ -141,10 +169,11 @@ export function AddRequestModal({
       status: "searching",
       from_location: fromBase,
       to_location: toCity.trim(),
-      comment: comment.trim() || null,
+      comment: [comment.trim(), driverNote].filter(Boolean).join(" · ") || null,
       name: vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK",
       vk_id: vkTag,
       avatar: avatarUrl,
+      car: carModel.trim() || null,
       city,
       total_seats: citySeats,
       available_seats: citySeats,
@@ -155,7 +184,7 @@ export function AddRequestModal({
       lng,
       price: 0,
       type: "Driver",
-      from_location: comment.trim() ? `${fromBase} · ${comment.trim().slice(0, 280)}` : fromBase,
+      from_location: [fromBase, comment.trim(), driverNote].filter(Boolean).join(" · ").slice(0, 320),
       to_location: toCity.trim(),
       name: fullRow.name,
       vk_id: vkTag,
@@ -234,6 +263,7 @@ export function AddRequestModal({
     const toLoc = to.trim()
     const departAtIso = departAtLocal ? new Date(departAtLocal).toISOString() : null
     const avatarUrl = vkUser?.photo_200 || null
+    const driverNote = userRole === "Driver" ? buildDriverNote(settings) : ""
 
     const fullRow: Record<string, unknown> = {
       lat: coords.lat,
@@ -243,7 +273,7 @@ export function AddRequestModal({
       status: "searching",
       from_location: fromLoc,
       to_location: toLoc,
-      comment: comment.trim() || null,
+      comment: [comment.trim(), driverNote].filter(Boolean).join(" · ") || null,
       name: vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK",
       vk_id: vkTag,
       avatar: avatarUrl,
@@ -259,7 +289,7 @@ export function AddRequestModal({
       lng: coords.lng,
       price: parseInt(price, 10),
       type: userRole,
-      from_location: comment.trim() ? `${fromLoc} · ${comment.trim().slice(0, 200)}` : fromLoc,
+      from_location: [fromLoc, comment.trim(), driverNote].filter(Boolean).join(" · ").slice(0, 320),
       to_location: toLoc,
       name: fullRow.name,
       vk_id: vkTag,
@@ -283,6 +313,7 @@ export function AddRequestModal({
         <p className="mb-4 rounded-xl bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-500">
           Точка на карте — центр экрана при открытии формы. Передвиньте карту и откройте снова, чтобы сменить пин.
         </p>
+        <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
         <div className="space-y-3">
           <input
             type="text"
@@ -364,6 +395,7 @@ export function AddRequestModal({
     return (
       <BottomSheet onClose={onClose} className="max-h-[86vh] overflow-y-auto pb-12">
           <h2 className="mb-6 text-xl font-bold text-gray-900">Куда поедем?</h2>
+          <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
           <div className="space-y-3">
             <RouteTimeline
               from={whereStanding}
@@ -463,6 +495,7 @@ export function AddRequestModal({
       <p className="mb-4 rounded-xl bg-[#F0F6FF] px-3 py-2 text-sm text-[#2787F5]">
         Заявка попадёт во вкладку «Межгород» для вашего города отправления.
       </p>
+      <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
       <div className="space-y-3">
         <input
           type="text"
@@ -554,4 +587,38 @@ export function AddRequestModal({
       </button>
     </BottomSheet>
   )
+}
+
+function RouteTemplatePicker({
+  routes,
+  onSelect,
+}: {
+  routes: RouteTemplate[]
+  onSelect: (route: RouteTemplate) => void
+}) {
+  const filledRoutes = routes.filter((route) => route.from.trim() || route.to.trim())
+  if (filledRoutes.length === 0) return null
+
+  return (
+    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      {filledRoutes.map((route) => (
+        <button
+          key={route.id}
+          type="button"
+          onClick={() => onSelect(route)}
+          className="poputi-focus-ring shrink-0 rounded-full bg-[#F0F6FF] px-3 py-2 text-xs font-bold text-[#2787F5] active:bg-[#DCEBFF]"
+        >
+          {route.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function buildDriverNote(settings: UserSettings): string {
+  const parts = []
+  if (settings.driver.paymentMethod === "transfer") parts.push("оплата переводом")
+  if (settings.driver.paymentMethod === "cash") parts.push("оплата наличными")
+  if (settings.driver.onlineUntil) parts.push(`на линии до ${settings.driver.onlineUntil}`)
+  return parts.join(", ")
 }
