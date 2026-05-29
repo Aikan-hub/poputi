@@ -89,7 +89,7 @@ export function AddRequestModal({
   const [carModel, setCarModel] = useState("")
   const [departAtLocal, setDepartAtLocal] = useState("")
   const [citySeats, setCitySeats] = useState(4)
-  const [seatCount, setSeatCount] = useState(3)
+  const [seatCount, setSeatCount] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
@@ -100,7 +100,6 @@ export function AddRequestModal({
     const loaded = loadUserSettings()
     setSettings(loaded)
     setCitySeats(loaded.driver.seats)
-    setSeatCount(loaded.driver.seats)
     const carLabel = [loaded.driver.carModel, loaded.driver.carColor].filter(Boolean).join(", ")
     if (carLabel) setCarModel(carLabel)
   }, [])
@@ -325,23 +324,7 @@ export function AddRequestModal({
             rows={3}
             className={cn(poputi.input, "w-full resize-none")}
           />
-          <div className="rounded-xl bg-gray-100 px-4 py-3">
-            <p className="text-sm font-medium text-gray-900">Свободных мест</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[1, 2, 3, 4].map((seat) => (
-                <button
-                  key={seat}
-                  type="button"
-                  onClick={() => setCitySeats(seat)}
-                  className={`h-10 w-10 rounded-full border text-sm font-semibold transition-colors ${
-                    seat <= citySeats ? "border-[#2787F5] bg-[#2787F5] text-white" : "border-gray-200 bg-white text-gray-900"
-                  }`}
-                >
-                  {seat}
-                </button>
-              ))}
-            </div>
-          </div>
+          <SeatCountPicker value={citySeats} onChange={setCitySeats} label="Свободных мест" />
           {submitError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>}
         </div>
         <button
@@ -400,6 +383,7 @@ export function AddRequestModal({
               className={cn(poputi.input, "mt-1 w-full resize-none py-2.5 text-sm")}
             />
           </div>
+          <SeatCountPicker value={seatCount} onChange={setSeatCount} label="Сколько мест нужно" />
         </section>
 
         {submitError ? (
@@ -478,25 +462,7 @@ export function AddRequestModal({
           aria-label="Комментарий"
           className={cn(poputi.input, "w-full resize-none")}
         />
-        <div className="rounded-xl bg-gray-100 px-4 py-3">
-          <p className="text-sm font-medium text-gray-900">Мест в салоне</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {[1, 2, 3, 4].map((seat) => (
-              <button
-                key={seat}
-                type="button"
-                onClick={() => setSeatCount(seat)}
-                className={`poputi-focus-ring h-10 w-10 rounded-full border text-sm font-semibold transition-colors ${
-                  seat <= seatCount ? "border-[#2787F5] bg-[#2787F5] text-white" : "border-gray-200 bg-white text-gray-900"
-                }`}
-                aria-label={`${seat} мест`}
-                aria-pressed={seat <= seatCount}
-              >
-                {seat}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SeatCountPicker value={seatCount} onChange={setSeatCount} label="Мест в салоне" />
         {submitError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>}
       </div>
       <button
@@ -540,6 +506,44 @@ function RouteTemplatePicker({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+function SeatCountPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: number
+  onChange: (seats: number) => void
+  label: string
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {[1, 2, 3, 4].map((seat) => {
+          const selected = seat === value
+          return (
+            <button
+              key={seat}
+              type="button"
+              onClick={() => onChange(seat)}
+              className={cn(
+                "poputi-focus-ring h-10 w-10 rounded-full border text-sm font-semibold transition-colors",
+                selected
+                  ? "border-[#2787F5] bg-[#2787F5] text-white"
+                  : "border-gray-200 bg-white text-gray-900"
+              )}
+              aria-label={`${seat} ${seat === 1 ? "место" : seat < 5 ? "места" : "мест"}`}
+              aria-pressed={selected}
+            >
+              {seat}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

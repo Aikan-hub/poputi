@@ -65,6 +65,8 @@ export type DriverData = {
   rideComment?: string | null
   fromLocation?: string
   toLocation?: string
+  /** Сколько мест запросил пассажир (по городу). */
+  requestedSeats?: number
   activeRide?: SupabaseRide
   driverPhotoUrl?: string
 }

@@ -23,6 +23,7 @@ import {
 } from "@/lib/driver-payment"
 import { acceptRideOffer, createRideOffer, rejectRideOffer } from "@/lib/ride-flow"
 import { rpcBookIntercitySeat } from "@/lib/intercity-booking"
+import { purgeExpiredRides } from "@/lib/rides"
 import { supabase } from "@/lib/supabase-client"
 import { DEFAULT_APP_CITY, type AppCity } from "@/lib/cities"
 import type {
@@ -145,6 +146,7 @@ export default function PoputiApp() {
   }, [isVkReady, vkMsgsAllowed, vkUser])
 
   const fetchRides = useCallback(async () => {
+    await purgeExpiredRides(supabase, { city: selectedCity })
     const { data, error } = await supabase
       .from("rides")
       .select("*")
@@ -186,6 +188,12 @@ export default function PoputiApp() {
   useEffect(() => {
     if (!isVkReady || !introCityDone) return
     void fetchRides()
+  }, [fetchRides, isVkReady, introCityDone])
+
+  useEffect(() => {
+    if (!isVkReady || !introCityDone) return
+    const id = setInterval(() => void fetchRides(), 60_000)
+    return () => clearInterval(id)
   }, [fetchRides, isVkReady, introCityDone])
 
   useEffect(() => {

@@ -17,7 +17,12 @@ import {
 import { FloatingMapChrome, poputi } from "@/components/poputi/ui"
 import { DriverActiveRideBar } from "@/components/poputi/driver-active-bar"
 import { cn } from "@/lib/utils"
-import { isPersistentRideType } from "@/lib/rides"
+import {
+  formatPassengerSeatsLabel,
+  isCityPassengerRide,
+  passengerSeatCountFromRide,
+} from "@/lib/passenger-seats"
+import { isPersistentRideType, isRideVisibleOnMap, rideMapTimerMinutes } from "@/lib/rides"
 import { normalizeRideStatus } from "@/lib/ride-status"
 import { APP_CITY_COORDS, type AppCity } from "@/lib/cities"
 import { DEFAULT_USER_SETTINGS, loadUserSettings, type UserSettings } from "@/lib/user-settings"
@@ -250,10 +255,20 @@ function CityMapView({
   const yandexReadyRef = useRef(false)
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapClock, setMapClock] = useState(0)
   const viewerTag = vkUser ? vkIdTagFromNumericId(vkUser.id) : null
+
+  useEffect(() => {
+    const id = setInterval(() => setMapClock((t) => t + 1), 15000)
+    return () => clearInterval(id)
+  }, [])
 
   const shouldDisplayRide = useCallback(
     (ride: SupabaseRide) => {
+      if (!isRideVisibleOnMap(ride.created_at, ride.type, ride.status)) {
+        const st = normalizeRideStatus(ride.status)
+        if (st === "searching") return false
+      }
       const st = normalizeRideStatus(ride.status)
       const isOwner = Boolean(viewerTag && ride.vk_id === viewerTag)
       const isDriver = Boolean(
@@ -288,11 +303,9 @@ function CityMapView({
 
       counters.visible += 1
 
-      const createdAt = new Date(ride.created_at).getTime()
-      const now = Date.now()
-      const elapsedMin = Math.floor((now - createdAt) / 60000)
       const persistent = isPersistentRideType(ride.type)
-      const timer = persistent ? 180 : Math.max(0, 180 - elapsedMin)
+      const timer = rideMapTimerMinutes(ride.created_at, ride.type)
+      if (!persistent && timer <= 0) return null
       const [lat, lng] = coords
 
       const rideAsDriver: DriverData = {
@@ -317,6 +330,9 @@ function CityMapView({
         rideComment: ride.comment ?? null,
         fromLocation: ride.from_location,
         toLocation: ride.to_location,
+        requestedSeats: isCityPassengerRide(ride.type)
+          ? passengerSeatCountFromRide(ride)
+          : undefined,
         activeRide: ride,
       }
 
@@ -336,7 +352,7 @@ function CityMapView({
     }[]
 
     return { markers, counters }
-  }, [rides, city, vkUser, shouldDisplayRide])
+  }, [rides, city, vkUser, shouldDisplayRide, mapClock])
 
   const myActiveDriverRide = useMemo(() => {
     if (!viewerTag || userRole !== "Driver") return null
@@ -805,7 +821,13 @@ function buildRideRadar(
       return {
         driver,
         routeTitle: routeTitle(driver),
-        meta: [driver.name || "Пользователь", driver.car && driver.car !== "Авто" ? driver.car : null]
+        meta: [
+          driver.name || "Пользователь",
+          driver.car && driver.car !== "Авто" ? driver.car : null,
+          isCityPassengerRide(driver.rideType) && driver.requestedSeats
+            ? formatPassengerSeatsLabel(driver.requestedSeats)
+            : null,
+        ]
           .filter(Boolean)
           .join(" · "),
         priceLabel: driver.price > 0 ? `${driver.price} ₽` : "В чате",

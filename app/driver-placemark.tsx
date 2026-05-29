@@ -28,12 +28,16 @@ export function DriverPlacemark({
 
   const createdMs = new Date(createdAt).getTime()
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 15000)
+    const interval = setInterval(() => setTick((t) => t + 1), 10000)
     return () => clearInterval(interval)
   }, [])
 
   const elapsedMin = Math.max(0, Math.floor((Date.now() - createdMs) / 60000))
   const isEarlyPulse = elapsedMin < 10
+
+  if (!isPersistent && driver.timer <= 0) {
+    return null
+  }
 
   const progress = isPersistent ? 100 : (driver.timer / 180) * 100
   const circumference = 2 * Math.PI * 24

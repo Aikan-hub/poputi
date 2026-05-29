@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 import {
   isPersistentRideType,
   isRideWithinActiveWindow,
-  RIDE_ACTIVE_MS,
+  purgeExpiredRides,
 } from "@/lib/rides";
 import { supabase } from "@/lib/supabase-client";
 
@@ -251,16 +251,7 @@ export function AdminPanel({
     )
       return;
     setClearingIntercity(true);
-    const boundary = new Date(Date.now() - RIDE_ACTIVE_MS).toISOString();
-    const { error } = await supabase
-      .from("rides")
-      .delete()
-      .eq("city", adminCity)
-      .not("from_location", "is", null)
-      .not("to_location", "is", null)
-      .lt("created_at", boundary)
-      .not("type", "eq", "Static")
-      .not("type", "eq", "AdminPoint");
+    const { error } = await purgeExpiredRides(supabase, { city: adminCity });
     setClearingIntercity(false);
     if (!error) {
       void fetchRides();
