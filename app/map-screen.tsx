@@ -132,35 +132,35 @@ export function MapScreen({
         />
       ) : (
         <>
-          <header className="relative z-20 shrink-0 border-b border-gray-100 bg-white px-4 py-3 shadow-sm">
+          <header className="poputi-glass relative z-20 shrink-0 border-b border-white/40 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onBackToCitySelect}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg"
+                className="poputi-glass flex h-10 w-10 items-center justify-center rounded-xl shadow-[0_6px_16px_-8px_rgba(15,23,42,0.35)] transition-transform active:scale-95"
               >
                 <span className="space-y-1.5">
-                  <span className="block h-0.5 w-5 rounded-full bg-gray-800" />
                   <span className="block h-0.5 w-4 rounded-full bg-gray-800" />
+                  <span className="block h-0.5 w-3 rounded-full bg-gray-800" />
                 </span>
               </button>
-              <div className="flex rounded-full bg-white/95 p-1 shadow-lg ring-1 ring-black/5">
+              <div className="poputi-glass flex rounded-full p-1 shadow-[0_8px_22px_-10px_rgba(15,23,42,0.35)]">
                 <button
                   type="button"
                   onClick={() => setMode("city")}
-                  className="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-500"
+                  className="rounded-full px-4 py-1.5 text-xs font-bold tracking-tight text-gray-600 transition-colors hover:text-gray-900"
                 >
                   Город
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode("intercity")}
-                  className="rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white"
+                  className="rounded-full bg-gradient-to-b from-gray-900 to-gray-800 px-4 py-1.5 text-xs font-bold tracking-tight text-white shadow-[0_6px_14px_-6px_rgba(15,23,42,0.55)]"
                 >
                   Межгород
                 </button>
               </div>
-              <div className="w-12" />
+              <div className="w-10" />
             </div>
           </header>
           <IntercityFeed
@@ -490,9 +490,10 @@ function CityMapView({
       )}
 
       {isVkReady && !isYandexReady && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100/85 text-gray-500 backdrop-blur-sm">
-          <div className="rounded-2xl bg-white px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-gray-200">
-            Загрузка карты…
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-b from-[#F4F7FB]/90 to-[#EEF2F8]/90 backdrop-blur-md">
+          <div className="poputi-glass flex items-center gap-3 rounded-2xl px-5 py-3 shadow-[0_12px_28px_-10px_rgba(15,23,42,0.3)]">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#2787F5] border-t-transparent" />
+            <span className="text-sm font-bold text-gray-700">Загрузка карты…</span>
           </div>
         </div>
       )}

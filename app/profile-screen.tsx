@@ -325,8 +325,8 @@ export function ProfileScreen({
         </div>
       </header>
 
-      <div className="-mt-5 space-y-4 p-4 pb-8">
-        <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+      <div className="-mt-5 space-y-3 p-4 pb-8">
+        <div className="poputi-card rounded-[1.25rem] p-4">
           <div className="flex flex-col gap-3">
             <div>
               <h3 className="font-bold text-gray-900">Роль</h3>
@@ -375,7 +375,7 @@ export function ProfileScreen({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+        <div className="poputi-card rounded-[1.25rem] p-4">
           <h3 className="mb-3 font-bold text-gray-900">Статистика</h3>
           <div className="mb-4 rounded-xl bg-[#F0F6FF] px-4 py-3">
             <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase text-gray-500">
@@ -730,7 +730,7 @@ export function ProfileScreen({
           </SettingsSection>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-100">
+        <div className="poputi-card overflow-hidden rounded-[1.25rem]">
           <button
             type="button"
             onClick={() => setRideHistoryOpen(true)}
@@ -1011,7 +1011,7 @@ function SettingsSection({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm">
+    <section className="poputi-card rounded-[1.25rem] p-3.5">
       <div className="mb-2.5 flex items-start gap-2.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
           {icon}

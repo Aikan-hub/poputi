@@ -732,7 +732,7 @@ export default function PoputiApp() {
             )}
           </div>
 
-          <nav className="safe-area-bottom relative flex items-stretch justify-around px-3 pb-2 pt-2 poputi-glass border-t-0 [border-top-left-radius:1.75rem] [border-top-right-radius:1.75rem]">
+          <nav className="safe-area-bottom flex items-stretch justify-around border-t border-gray-200/60 bg-white/80 px-1 pt-0.5 backdrop-blur-xl">
             <NavButton
               icon={<Map className="h-6 w-6" />}
               label="Карта"
