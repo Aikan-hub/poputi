@@ -11,12 +11,14 @@ export function DriverPlacemark({
   isPersistent,
   createdAt,
   rideType,
+  locked,
   onClick,
 }: {
   driver: DriverData
   isPersistent?: boolean
   createdAt: string
   rideType: string | null | undefined
+  locked?: boolean
   onClick: () => void
 }) {
   const [, setTick] = useState(0)
@@ -81,7 +83,7 @@ export function DriverPlacemark({
       : ""
 
     const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="66" viewBox="0 0 56 66">
+    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="66" viewBox="0 0 56 66"${locked ? ' opacity="0.35"' : ""}>
       ${
         hasAvatar
           ? `<defs>
@@ -137,9 +139,10 @@ export function DriverPlacemark({
     showBadge,
     badgeColor,
     isDriverType,
+    locked,
   ])
 
   return (
-    <Placemark geometry={driver.coords} options={placemarkOptions} onClick={onClick} />
+    <Placemark geometry={driver.coords} options={placemarkOptions} onClick={locked ? undefined : onClick} />
   )
 }

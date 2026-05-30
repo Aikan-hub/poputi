@@ -29,6 +29,9 @@ import { DEFAULT_USER_SETTINGS, loadUserSettings, type UserSettings } from "@/li
 import type { DriverData, Mode, SupabaseRide, VkUserProfile } from "./types"
 import { parseRideCoords, matchesCity, cityBoundsKm, getAvatarLabel, vkIdTagFromNumericId, isCityMapRide } from "./helpers"
 import { getYandexMapsApiKey } from "@/lib/env"
+import { useDriverAccess } from "@/hooks/use-driver-access"
+import { YokassaPaymentModal } from "@/components/yokassa-payment-modal"
+import { YOKASSA_ACCESS_PRICE } from "@/lib/yokassa-access"
 import { DriverPlacemark } from "./driver-placemark"
 import { DriverBottomSheet } from "./driver-bottom-sheet"
 import { AddRequestModal } from "./add-request-modal"
@@ -259,7 +262,11 @@ function CityMapView({
   const mapInstanceRef = useRef<{ getCenter: () => number[] } | null>(null)
   const [addPinCoords, setAddPinCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [mapClock, setMapClock] = useState(0)
+  const [yokassaPayOpen, setYokassaPayOpen] = useState(false)
   const viewerTag = vkUser ? vkIdTagFromNumericId(vkUser.id) : null
+  const { hasAccess: driverHasAccess } = useDriverAccess(
+    userRole === "Driver" ? viewerTag : null
+  )
 
   useEffect(() => {
     const id = setInterval(() => setMapClock((t) => t + 1), 15000)
@@ -279,11 +286,10 @@ function CityMapView({
       )
       if (st === "searching") return true
       if (st === "accepted" || st === "arrived" || st === "in_transit") return isOwner || isDriver
-      // BUGFIX: завершённые/отменённые заявки убираем с карты
       if (st === "completed" || st === "cancelled") return false
       return true
     },
-    [viewerTag]
+    [viewerTag, userRole, driverHasAccess]
   )
 
   const mapMarkers = useMemo(() => {
@@ -399,9 +405,17 @@ function CityMapView({
     }
   }, [myActiveDriverRide])
 
+  const driverNeedsAccess = userRole === "Driver" && !driverHasAccess
+  const radarMarkers = useMemo(() => {
+    if (!driverNeedsAccess) return mapMarkers.markers
+    return mapMarkers.markers.filter(
+      (m) => !(m.rideType === "Passenger" || m.rideType === "City" || !m.rideType)
+    )
+  }, [mapMarkers.markers, driverNeedsAccess])
+
   const rideRadar = useMemo(
-    () => buildRideRadar(mapMarkers.markers, cityCoords, userSettings.radar),
-    [mapMarkers.markers, cityCoords, userSettings.radar]
+    () => buildRideRadar(radarMarkers, cityCoords, userSettings.radar),
+    [radarMarkers, cityCoords, userSettings.radar]
   )
   const isPassenger = userRole !== "Driver"
   const showPassengerTeaser = isPassenger && !showAddRequest && !selectedDriver && !myActiveDriverRide
@@ -471,16 +485,23 @@ function CityMapView({
               className="h-full w-full"
               options={mapOptions}
             >
-              {mapMarkers.markers.map((marker) => (
-                <DriverPlacemark
-                  key={marker.key}
-                  driver={marker.driver}
-                  isPersistent={marker.persistent}
-                  createdAt={marker.createdAt}
-                  rideType={marker.rideType}
-                  onClick={() => setSelectedDriver(marker.driver)}
-                />
-              ))}
+              {mapMarkers.markers.map((marker) => {
+                const isLockedPassenger =
+                  userRole === "Driver" &&
+                  !driverHasAccess &&
+                  (marker.rideType === "Passenger" || marker.rideType === "City" || !marker.rideType)
+                return (
+                  <DriverPlacemark
+                    key={marker.key}
+                    driver={marker.driver}
+                    isPersistent={marker.persistent}
+                    createdAt={marker.createdAt}
+                    rideType={marker.rideType}
+                    locked={isLockedPassenger}
+                    onClick={() => setSelectedDriver(marker.driver)}
+                  />
+                )
+              })}
             </YMap>
           </YMaps>
         </div>
@@ -571,6 +592,34 @@ function CityMapView({
           vkUser={vkUser}
         />
       )}
+
+      {driverNeedsAccess && !showAddRequest && !selectedDriver && (
+        <button
+          type="button"
+          onClick={() => setYokassaPayOpen(true)}
+          className="absolute left-3 right-3 top-16 z-20 flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50/95 px-4 py-3 shadow-lg backdrop-blur-sm active:scale-[0.98]"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+            <WalletCards className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-sm font-bold text-gray-900">Заявки пассажиров скрыты</p>
+            <p className="text-xs text-gray-500">Оплатите доступ на 24ч — {YOKASSA_ACCESS_PRICE} &#8381;</p>
+          </div>
+          <span className="shrink-0 rounded-lg bg-[#2787F5] px-3 py-1.5 text-xs font-bold text-white">
+            Открыть
+          </span>
+        </button>
+      )}
+
+      <YokassaPaymentModal
+        open={yokassaPayOpen}
+        onClose={() => setYokassaPayOpen(false)}
+        vkTag={viewerTag ?? "id000000"}
+        onSuccess={() => {
+          setYokassaPayOpen(false)
+        }}
+      />
     </div>
   )
 }

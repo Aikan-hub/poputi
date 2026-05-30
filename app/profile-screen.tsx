@@ -46,6 +46,8 @@ import {
   setPendingDriverInvoice,
   DRIVER_ACCESS_PRICE_LABEL,
 } from "@/lib/driver-payment"
+import { YokassaPaymentModal } from "@/components/yokassa-payment-modal"
+import { useDriverAccess, grantLocalAccess as grantYokassaLocalAccess } from "@/hooks/use-driver-access"
 import { supabase } from "@/lib/supabase-client"
 import { type AppCity } from "@/lib/cities"
 import {
@@ -86,6 +88,7 @@ export function ProfileScreen({
   const [driverCheckHint, setDriverCheckHint] = useState<string | null>(null)
   const [roleConfirmTarget, setRoleConfirmTarget] = useState<"driver" | "passenger" | null>(null)
   const [roleSwitching, setRoleSwitching] = useState(false)
+  const [yokassaPayOpen, setYokassaPayOpen] = useState(false)
   const [profileStats, setProfileStats] = useState<{
     totalRides: number
     averageRating: number | null
@@ -170,18 +173,9 @@ export function ProfileScreen({
   }, [roleSwitching])
 
   const confirmSwitchToDriver = useCallback(async () => {
-    setRoleSwitching(true)
-    try {
-      // TEMP: пока нет платёжки — выдаём доступ водителя локально всем, без CloudTips.
-      // Чтобы вернуть оплату — восстановите ветку с createDriverPaymentIntent ниже.
-      grantDriverAccessLocally()
-      onDriverPaymentVerified?.()
-      setIsDriver(true)
-      setRoleConfirmTarget(null)
-    } finally {
-      setRoleSwitching(false)
-    }
-  }, [setIsDriver, onDriverPaymentVerified])
+    setRoleConfirmTarget(null)
+    setYokassaPayOpen(true)
+  }, [])
 
   const confirmSwitchToPassenger = useCallback(() => {
     setIsDriver(false)
@@ -197,6 +191,18 @@ export function ProfileScreen({
         historyCity={historyCity}
         appendReviewChatMessage={appendReviewChatMessage}
         onProfileStatsReload={loadProfileStats}
+      />
+      <YokassaPaymentModal
+        open={yokassaPayOpen}
+        onClose={() => setYokassaPayOpen(false)}
+        vkTag={vkUser ? vkIdTagFromNumericId(vkUser.id) : "id000000"}
+        onSuccess={() => {
+          setYokassaPayOpen(false)
+          grantDriverAccessLocally()
+          grantYokassaLocalAccess()
+          onDriverPaymentVerified?.()
+          setIsDriver(true)
+        }}
       />
       <header className="relative overflow-hidden bg-gradient-to-br from-[#1453B8] via-[#2680EB] to-[#6C5CE7] px-4 pb-10 pt-6 text-white">
         {/* Aurora blobs */}
