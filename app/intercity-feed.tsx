@@ -134,16 +134,17 @@ export function IntercityFeed({
   }, [intercityRides])
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-gray-100">
+    <div className="relative flex-1 overflow-hidden bg-gradient-to-b from-[#F4F7FB] to-[#EEF2F8]">
       <div className="app-scrollbar h-full space-y-3 overflow-y-auto p-4 pb-24">
         {allRides.length === 0 ? (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/80 px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+          <div className="poputi-card relative flex min-h-[55vh] flex-col items-center justify-center overflow-hidden rounded-[1.5rem] px-6 py-10 text-center">
+            <div className="poputi-aurora opacity-50" aria-hidden />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl poputi-grad-primary text-white shadow-[0_14px_30px_-10px_rgba(39,135,245,0.55)] ring-1 ring-white/40 poputi-float">
               <Route className="h-7 w-7" />
             </div>
-            <h2 className="mt-4 text-lg font-bold text-gray-900">Пока нет поездок</h2>
-            <p className="mt-1 text-sm leading-relaxed text-gray-500">
-              Создайте заявку кнопкой «+» — маршрут из города {selectedCity}.
+            <h2 className="relative mt-5 text-xl font-black tracking-tight text-gray-950">Пока нет поездок</h2>
+            <p className="relative mt-1.5 max-w-xs text-sm font-medium leading-relaxed text-gray-500">
+              Создайте заявку кнопкой «+» — маршрут из города <span className="font-bold text-gray-800">{selectedCity}</span>.
             </p>
           </div>
         ) : (
@@ -163,10 +164,11 @@ export function IntercityFeed({
       <button
         type="button"
         onClick={() => setIntercityAddRequestOpen(true)}
-        className="absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/30 ring-4 ring-white/90 transition-transform active:scale-95"
+        className="poputi-grad-primary absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-[0_18px_36px_-10px_rgba(39,135,245,0.65)] ring-1 ring-white/40 transition-transform hover:scale-[1.04] active:scale-95"
         aria-label="Новая заявка межгород"
       >
         <Plus className="h-7 w-7" />
+        <span className="pointer-events-none absolute inset-0 rounded-2xl poputi-pulse-ring" aria-hidden />
       </button>
       {intercityAddRequestOpen && (
         <AddRequestModal
@@ -247,12 +249,12 @@ function RideCard({
   const bookDisabled = ride.rawRide ? !canBookDb : !canBookMock
 
   const cardRing = ride.isLegendDriver
-    ? "ring-2 ring-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.35)]"
+    ? "ring-2 ring-amber-400 shadow-[0_18px_36px_-14px_rgba(251,191,36,0.45)]"
     : ""
   const bookLabel = isOwner ? "Это ваша заявка" : avail <= 0 ? "Мест нет" : "Забронировать место"
 
   return (
-    <div className={`rounded-2xl bg-white p-4 shadow-sm border border-gray-100 ${cardRing}`}>
+    <div className={`poputi-card poputi-card-hover rounded-[1.25rem] p-4 ${cardRing}`}>
       <div className="flex items-start gap-3">
         {ride.driverPhotoUrl ? (
           <img
@@ -261,7 +263,7 @@ function RideCard({
             className="h-12 w-12 shrink-0 rounded-full object-cover bg-gray-100"
           />
         ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-sm font-semibold text-white">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full poputi-grad-primary text-sm font-bold text-white shadow-[0_8px_18px_-8px_rgba(39,135,245,0.55)] ring-1 ring-white/40">
             {ride.avatar}
           </div>
         )}
@@ -323,7 +325,7 @@ function RideCard({
           type="button"
           onClick={() => (ride.rawRide ? openSeatModal() : handleMockBook())}
           disabled={bookDisabled}
-          className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 hover:bg-[#1F6AD8] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+          className="poputi-btn-motion poputi-focus-ring poputi-grad-primary w-full rounded-2xl py-3 text-sm font-bold text-white shadow-[0_12px_28px_-8px_rgba(39,135,245,0.55)] ring-1 ring-white/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
         >
           {bookLabel}
         </button>

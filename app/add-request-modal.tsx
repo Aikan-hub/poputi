@@ -143,7 +143,7 @@ export function AddRequestModal({
     setSubmitError(null)
 
     const fromBase = whereStanding.trim()
-    const avatarUrl = vkUser?.photo_200 || null
+    const avatarUrl = settings.privacy.hideAvatar ? null : (vkUser?.photo_200 || null)
     const driverNote = buildDriverNote(settings)
     const fullRow = {
       lat,
@@ -154,7 +154,11 @@ export function AddRequestModal({
       from_location: fromBase,
       to_location: toCity.trim(),
       comment: [comment.trim(), driverNote].filter(Boolean).join(" · ") || null,
-      name: vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK",
+      name: vkUser
+        ? (settings.privacy.hideAvatar
+            ? (vkUser.first_name?.trim() || "Аноним")
+            : `${vkUser.first_name} ${vkUser.last_name}`.trim())
+        : "Пользователь VK",
       vk_id: vkTag,
       avatar: avatarUrl,
       car: carModel.trim() || null,
@@ -194,7 +198,7 @@ export function AddRequestModal({
 
     const coords = await resolveCoords(whereStanding.trim())
     const priceNum = clampRidePrice(price)
-    const avatarUrl = vkUser?.photo_200 || null
+    const avatarUrl = settings.privacy.hideAvatar ? null : (vkUser?.photo_200 || null)
 
     const fullRow = {
       lat: coords.lat,
@@ -205,7 +209,11 @@ export function AddRequestModal({
       from_location: whereStanding.trim(),
       to_location: toCity.trim(),
       comment: comment.trim() || null,
-      name: vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK",
+      name: vkUser
+        ? (settings.privacy.hideAvatar
+            ? (vkUser.first_name?.trim() || "Аноним")
+            : `${vkUser.first_name} ${vkUser.last_name}`.trim())
+        : "Пользователь VK",
       vk_id: vkTag,
       avatar: avatarUrl,
       city,
@@ -246,7 +254,7 @@ export function AddRequestModal({
     const fromLoc = address.trim()
     const toLoc = to.trim()
     const departAtIso = departAtLocal ? new Date(departAtLocal).toISOString() : null
-    const avatarUrl = vkUser?.photo_200 || null
+    const avatarUrl = settings.privacy.hideAvatar ? null : (vkUser?.photo_200 || null)
     const driverNote = userRole === "Driver" ? buildDriverNote(settings) : ""
     const priceNum = clampRidePrice(price)
 
@@ -259,7 +267,11 @@ export function AddRequestModal({
       from_location: fromLoc,
       to_location: toLoc,
       comment: [comment.trim(), driverNote].filter(Boolean).join(" · ") || null,
-      name: vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK",
+      name: vkUser
+        ? (settings.privacy.hideAvatar
+            ? (vkUser.first_name?.trim() || "Аноним")
+            : `${vkUser.first_name} ${vkUser.last_name}`.trim())
+        : "Пользователь VK",
       vk_id: vkTag,
       avatar: avatarUrl,
       city,

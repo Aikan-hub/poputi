@@ -122,66 +122,135 @@ export function DriverBottomSheet({
       : null
 
   if (canTakeCity) {
+    const passengerInitial = String(driver.name || "?").slice(0, 1).toUpperCase()
+    const etaLabel = `~${driver.timer || 5} мин`
+
     return (
-      <BottomSheet onClose={onClose} className="pb-12">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900">{driver.price || 0} ₽</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-gray-500">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" /> ~{driver.timer || 5} мин до вас
+      <BottomSheet onClose={onClose} className="pb-6">
+        {/* Header: price + meta + avatar */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#EAF2FF] to-[#DCE9FF] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#2787F5] ring-1 ring-[#2787F5]/15">
+              Новая заявка
+            </div>
+            <h3 className="mt-1.5 flex items-baseline gap-1 text-[1.65rem] font-black leading-none tracking-tight">
+              <span className="poputi-grad-text">{driver.price || 0}</span>
+              <span className="text-lg font-bold text-gray-400">₽</span>
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 ring-1 ring-gray-100">
+                <Clock className="h-2.5 w-2.5 text-gray-500" aria-hidden /> {etaLabel}
               </span>
               {passengerSeats != null && (
-                <span className="rounded-full bg-[#F0F6FF] px-2 py-0.5 text-xs font-semibold text-[#2787F5]">
+                <span className="rounded-full bg-gradient-to-r from-[#EAF2FF] to-[#DCE9FF] px-1.5 py-0.5 text-[10px] font-bold text-[#2787F5] ring-1 ring-[#2787F5]/15">
                   {formatPassengerSeatsLabel(passengerSeats)}
                 </span>
               )}
-              <span>по карте</span>
+              <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200/70">
+                По карте
+              </span>
             </div>
           </div>
-          {passengerPhoto ? (
-            <img src={passengerPhoto} alt="" className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm" />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-600">
-              {String(driver.name || "?").slice(0, 1)}
-            </div>
-          )}
+          <div className="relative shrink-0">
+            {passengerPhoto ? (
+              <img
+                src={passengerPhoto}
+                alt=""
+                className="h-11 w-11 rounded-full object-cover ring-2 ring-white shadow-[0_6px_16px_-6px_rgba(15,23,42,0.35)]"
+              />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-full poputi-grad-primary text-base font-bold text-white ring-2 ring-white shadow-[0_6px_16px_-6px_rgba(39,135,245,0.55)]">
+                {passengerInitial}
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full border-[1.5px] border-white bg-[#4BB34B]">
+              <span className="h-1 w-1 rounded-full bg-white" />
+            </span>
+          </div>
         </div>
 
-        <div className="mb-6 mt-4 rounded-xl bg-gray-50 p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-800" />
-            <p className="truncate text-sm font-medium text-gray-900">{driver.fromLocation || "—"}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2787F5]" />
-            <p className="truncate text-sm font-medium text-gray-900">{driver.toLocation || "—"}</p>
+        {/* Route timeline */}
+        <div className="relative mb-3 mt-3 overflow-hidden rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="relative">
+            <div
+              className="pointer-events-none absolute left-[5px] top-3 bottom-3 w-0.5 rounded-full bg-gradient-to-b from-gray-300 via-gray-200 to-[#2787F5]/70"
+              aria-hidden
+            />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="relative z-10 flex h-3 w-3 shrink-0 items-center justify-center">
+                  <span className="absolute h-3 w-3 rounded-full bg-gray-800" />
+                  <span className="relative h-1 w-1 rounded-full bg-white" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-gray-400 leading-tight">Откуда</p>
+                  <p className="truncate text-[13px] font-bold text-gray-900 leading-tight">{driver.fromLocation || "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="relative z-10 flex h-3 w-3 shrink-0 items-center justify-center">
+                  <span className="absolute h-3 w-3 rounded-full bg-[#2787F5] shadow-[0_0_0_2px_rgba(39,135,245,0.18)]" />
+                  <span className="relative h-1 w-1 rounded-full bg-white" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-[#2787F5] leading-tight">Куда</p>
+                  <p className="truncate text-[13px] font-bold text-gray-900 leading-tight">{driver.toLocation || "—"}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {actionError && (
-          <p className="mb-3 rounded-xl bg-[#F0F6FF] px-3 py-2 text-center text-sm text-[#2787F5]">{actionError}</p>
+          <div className="mb-2 flex items-start gap-2 rounded-xl border border-[#2787F5]/15 bg-gradient-to-r from-[#EAF2FF] to-[#DCE9FF] px-2.5 py-1.5">
+            <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[#2787F5] text-[9px] font-bold text-white">i</span>
+            <p className="text-[11px] font-semibold leading-snug text-[#1F6AD8]">{actionError}</p>
+          </div>
         )}
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => void sendOffer(0)}
-            className={poputi.btnPrimary}
-          >
-            {busy === "offer" ? "Отправка…" : `Забрать за ${driver.price || 0} ₽`}
-          </button>
-          <div className="flex gap-2">
+        {/* Primary CTA */}
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => void sendOffer(0)}
+          className={cn(
+            "poputi-btn-motion poputi-focus-ring poputi-grad-primary group relative w-full overflow-hidden rounded-xl py-3 text-sm font-bold tracking-tight text-white shadow-[0_10px_24px_-10px_rgba(39,135,245,0.6)] ring-1 ring-white/30 transition-all hover:shadow-[0_14px_30px_-10px_rgba(39,135,245,0.7)] active:scale-[0.98] disabled:bg-none disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
+          )}
+        >
+          <span
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+            aria-hidden
+          />
+          <span className="relative inline-flex items-center justify-center gap-2">
+            {busy === "offer" ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+                Отправка…
+              </>
+            ) : (
+              <>Забрать за {driver.price || 0} ₽</>
+            )}
+          </span>
+        </button>
+
+        {/* Tip buttons */}
+        <div className="mt-2">
+          <p className="mb-1 text-center text-[9px] font-bold uppercase tracking-wide text-gray-400">
+            Предложить выше
+          </p>
+          <div className="grid grid-cols-3 gap-1.5">
             {[10, 30, 50].map((val) => (
               <button
                 key={val}
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void sendOffer(val)}
-                className="poputi-btn-motion poputi-focus-ring flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 hover:border-[#2787F5] hover:text-[#2787F5] active:bg-gray-50 disabled:opacity-50"
+                className="poputi-btn-motion poputi-focus-ring group relative overflow-hidden rounded-xl border border-gray-100 bg-white py-1.5 text-xs font-bold text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-[#2787F5]/40 hover:bg-gradient-to-b hover:from-white hover:to-[#F0F6FF] hover:text-[#2787F5] hover:shadow-[0_8px_18px_-10px_rgba(39,135,245,0.35)] active:scale-95 disabled:opacity-50"
               >
-                +{val} ₽
+                <span className="block text-[9px] font-bold leading-none text-gray-400 group-hover:text-[#2787F5]/70">
+                  +
+                </span>
+                <span className="block text-[13px] font-black leading-tight tracking-tight">{val} ₽</span>
               </button>
             ))}
           </div>

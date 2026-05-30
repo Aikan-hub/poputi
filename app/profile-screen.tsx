@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   Clock,
   ExternalLink,
+  EyeOff,
   GraduationCap,
   Home,
   MapPinned,
@@ -132,7 +133,13 @@ export function ProfileScreen({
     void loadProfileStats()
   }, [loadProfileStats])
 
-  const fullName = vkUser ? `${vkUser.first_name} ${vkUser.last_name}`.trim() : "Пользователь VK"
+  const hideAvatar = settings.privacy.hideAvatar
+  const hideVkLink = settings.privacy.hideVkLink
+  const fullName = vkUser
+    ? (hideAvatar
+        ? (vkUser.first_name?.trim() || "Аноним")
+        : `${vkUser.first_name} ${vkUser.last_name}`.trim())
+    : "Пользователь VK"
   const profileLink = vkUser ? `https://vk.com/id${vkUser.id}` : "https://vk.com"
   const avatarFallback = fullName
     .split(" ")
@@ -165,40 +172,16 @@ export function ProfileScreen({
   const confirmSwitchToDriver = useCallback(async () => {
     setRoleSwitching(true)
     try {
-      if (hasDriverAccess()) {
-        setIsDriver(true)
-        setRoleConfirmTarget(null)
-        return
-      }
-      if (!vkUser) {
-        grantDriverAccessLocally()
-        onDriverPaymentVerified?.()
-        setIsDriver(true)
-        setRoleConfirmTarget(null)
-        return
-      }
-      const tag = vkIdTagFromNumericId(vkUser.id)
-      setDriverPayError(null)
-      setDriverCheckHint(null)
-      const created = await createDriverPaymentIntent(tag)
-      if (!created.ok) {
-        setDriverInvoiceId(null)
-        setDriverPayUrl("")
-        setDriverPayError(created.message)
-        setRoleConfirmTarget(null)
-        setDriverPayOpen(true)
-        return
-      }
-      setDriverInvoiceId(created.invoiceId)
-      setDriverPayUrl(created.payUrl)
-      setPendingDriverInvoice(created.invoiceId)
+      // TEMP: пока нет платёжки — выдаём доступ водителя локально всем, без CloudTips.
+      // Чтобы вернуть оплату — восстановите ветку с createDriverPaymentIntent ниже.
+      grantDriverAccessLocally()
+      onDriverPaymentVerified?.()
+      setIsDriver(true)
       setRoleConfirmTarget(null)
-      await openPaymentUrl(created.payUrl)
-      setDriverPayOpen(true)
     } finally {
       setRoleSwitching(false)
     }
-  }, [vkUser, setIsDriver, onDriverPaymentVerified])
+  }, [setIsDriver, onDriverPaymentVerified])
 
   const confirmSwitchToPassenger = useCallback(() => {
     setIsDriver(false)
@@ -206,7 +189,7 @@ export function ProfileScreen({
   }, [setIsDriver])
 
   return (
-    <div className="app-scrollbar h-full overflow-y-auto bg-gray-100">
+    <div className="app-scrollbar h-full overflow-y-auto bg-gradient-to-b from-[#F4F7FB] to-[#EEF2F8]">
       <RideHistoryModal
         open={rideHistoryOpen}
         onClose={() => setRideHistoryOpen(false)}
@@ -215,7 +198,20 @@ export function ProfileScreen({
         appendReviewChatMessage={appendReviewChatMessage}
         onProfileStatsReload={loadProfileStats}
       />
-      <header className="relative overflow-hidden bg-gradient-to-b from-[#2787F5] via-[#2680EB] to-[#1F6AD8] px-4 pb-10 pt-6 text-white">
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#1453B8] via-[#2680EB] to-[#6C5CE7] px-4 pb-10 pt-6 text-white">
+        {/* Aurora blobs */}
+        <div
+          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/15 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-10 left-0 h-40 w-40 rounded-full bg-[#FF5A5F]/25 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-6 top-1/3 h-24 w-24 rounded-full bg-[#4BB34B]/25 blur-2xl"
+          aria-hidden
+        />
         <div
           className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full border border-white/15 bg-white/5"
           aria-hidden
@@ -228,7 +224,7 @@ export function ProfileScreen({
         <div className="relative rounded-2xl border border-white/30 bg-white/10 p-4 shadow-[0_12px_32px_rgba(15,45,90,0.25)] backdrop-blur-[2px]">
           <div className="flex items-start gap-4">
             <div className="shrink-0 rounded-full border-2 border-white/50 bg-white/10 p-0.5 shadow-md">
-              {vkUser?.photo_200 ? (
+              {vkUser?.photo_200 && !hideAvatar ? (
                 <img
                   src={vkUser.photo_200}
                   alt={fullName}
@@ -278,17 +274,24 @@ export function ProfileScreen({
                 </div>
               ) : null}
 
-              <a
-                href={profileLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="poputi-focus-ring mt-3 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/20"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
-                <span className="truncate">
-                  {vkUser ? `vk.com/id${vkUser.id}` : "vk.com"}
-                </span>
-              </a>
+              {hideVkLink ? (
+                <div className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white">
+                  <Shield className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                  <span className="truncate">Анонимный режим</span>
+                </div>
+              ) : (
+                <a
+                  href={profileLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="poputi-focus-ring mt-3 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/20"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                  <span className="truncate">
+                    {vkUser ? `vk.com/id${vkUser.id}` : "vk.com"}
+                  </span>
+                </a>
+              )}
             </div>
           </div>
 
@@ -675,6 +678,40 @@ export function ProfileScreen({
                   }))
                 }
               />
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
+            icon={<EyeOff className="h-5 w-5" />}
+            title="Приватность"
+            caption="Анонимный режим — скрывает аватар и ссылку на VK"
+          >
+            <div className="space-y-2">
+              <ToggleRow
+                label="Скрыть мой аватар"
+                checked={settings.privacy.hideAvatar}
+                onChange={(checked) =>
+                  updateSettings((current) => ({
+                    ...current,
+                    privacy: { ...current.privacy, hideAvatar: checked },
+                  }))
+                }
+              />
+              <ToggleRow
+                label="Скрыть ссылку vk.com"
+                checked={settings.privacy.hideVkLink}
+                onChange={(checked) =>
+                  updateSettings((current) => ({
+                    ...current,
+                    privacy: { ...current.privacy, hideVkLink: checked },
+                  }))
+                }
+              />
+              {(settings.privacy.hideAvatar || settings.privacy.hideVkLink) && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700 ring-1 ring-amber-200">
+                  Анонимный режим: в новых заявках аватар и фамилия не будут видны другим. Уже опубликованные заявки не меняются.
+                </p>
+              )}
             </div>
           </SettingsSection>
 

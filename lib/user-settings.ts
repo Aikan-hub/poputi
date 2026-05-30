@@ -36,6 +36,12 @@ export type UserSettings = {
     shareRide: boolean
     hideVkUntilAccepted: boolean
   }
+  privacy: {
+    /** Скрывает аватар пользователя для других (показ инициалов) */
+    hideAvatar: boolean
+    /** Скрывает ссылку vk.com/idX в публичных карточках */
+    hideVkLink: boolean
+  }
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -69,6 +75,10 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     trustedContactPhone: "",
     shareRide: false,
     hideVkUntilAccepted: true,
+  },
+  privacy: {
+    hideAvatar: false,
+    hideVkLink: false,
   },
 }
 
@@ -118,6 +128,10 @@ export function normalizeUserSettings(settings: Partial<UserSettings>): UserSett
       trustedContactPhone: normalizeStoredRuPhone(settings.safety?.trustedContactPhone),
       shareRide: settings.safety?.shareRide ?? defaults.safety.shareRide,
       hideVkUntilAccepted: settings.safety?.hideVkUntilAccepted ?? defaults.safety.hideVkUntilAccepted,
+    },
+    privacy: {
+      hideAvatar: settings.privacy?.hideAvatar ?? defaults.privacy.hideAvatar,
+      hideVkLink: settings.privacy?.hideVkLink ?? defaults.privacy.hideVkLink,
     },
   }
 }

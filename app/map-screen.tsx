@@ -505,10 +505,11 @@ function CityMapView({
         <button
           type="button"
           onClick={() => setShowAddRequest(true)}
-          className="poputi-focus-ring absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-[#2787F5] text-white shadow-xl shadow-[#2787F5]/30 ring-4 ring-white/90 transition-transform hover:bg-[#1F6AD8] motion-reduce:active:scale-100 active:scale-95"
+          className="poputi-focus-ring poputi-grad-primary absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-[0_18px_36px_-10px_rgba(39,135,245,0.65)] ring-1 ring-white/40 transition-all hover:scale-[1.04] motion-reduce:active:scale-100 active:scale-95"
           aria-label="Новая заявка"
         >
           <Plus className="h-7 w-7" aria-hidden />
+          <span className="pointer-events-none absolute inset-0 rounded-2xl poputi-pulse-ring" aria-hidden />
         </button>
       )}
 
@@ -626,7 +627,7 @@ function RideRadarPanel({
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3">
-      <div className={cn(poputi.sheet, "overflow-hidden rounded-2xl px-3 shadow-lg")}>
+      <div className="poputi-glass overflow-hidden rounded-[1.5rem] px-3 shadow-[0_-12px_36px_-12px_rgba(15,23,42,0.18)]">
         <div className="flex items-center gap-2 py-2">
           <button
             type="button"
@@ -639,15 +640,17 @@ function RideRadarPanel({
             aria-expanded={hasRides ? panelOpen : undefined}
             aria-label={panelOpen ? "Свернуть радар" : "Развернуть радар"}
           >
-            <Activity className="h-3.5 w-3.5 shrink-0 text-[#2787F5]" aria-hidden />
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#EAF2FF] to-[#DCE9FF] ring-1 ring-[#2787F5]/15">
+              <Activity className="h-3.5 w-3.5 text-[#2787F5]" aria-hidden />
+            </span>
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-[#2787F5]">
+              <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#2787F5]">
                 Радар
               </span>
               <p className="truncate text-sm font-bold leading-tight text-gray-900">{summaryLabel}</p>
             </div>
             {hasRides && (
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-gray-600 ring-1 ring-gray-100 shadow-sm">
                 {panelOpen ? (
                   <ChevronDown className="h-4 w-4" aria-hidden />
                 ) : (
@@ -659,7 +662,7 @@ function RideRadarPanel({
           <button
             type="button"
             onClick={onCreateRequest}
-            className="poputi-focus-ring flex shrink-0 items-center gap-1 rounded-full bg-[#2787F5] px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-[#2787F5]/20 active:scale-95"
+            className="poputi-focus-ring poputi-grad-primary flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_-6px_rgba(39,135,245,0.55)] ring-1 ring-white/30 active:scale-95"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
             Заявка
@@ -694,7 +697,7 @@ function RideRadarPanel({
                 return (
                   <div
                     key={key}
-                    className="overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-100/80"
+                    className="overflow-hidden rounded-2xl bg-white/80 ring-1 ring-gray-100/90 shadow-[0_2px_8px_-4px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_8px_22px_-10px_rgba(39,135,245,0.25)]"
                   >
                     <div className="flex items-center gap-1 pr-1">
                       <button
@@ -775,10 +778,10 @@ function RideRadarPanel({
 
 function RadarStatChip({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="min-w-0 flex-1 rounded-lg bg-gray-50 px-2 py-1.5">
+    <div className="min-w-0 flex-1 rounded-xl bg-white/80 px-2.5 py-1.5 ring-1 ring-gray-100/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="flex items-center gap-1 text-gray-400">
         {icon}
-        <span className="truncate text-[10px] font-semibold">{label}</span>
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wide">{label}</span>
       </div>
       <div className="truncate text-xs font-bold text-gray-900">{value}</div>
     </div>

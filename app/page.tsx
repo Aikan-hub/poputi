@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Map, MessageCircle, Shield, User } from "lucide-react"
 import { assertNotBanned } from "@/lib/banned-users"
 import { loadIntroCityDone, loadStoredCity, storeSelectedCity } from "@/lib/app-storage"
+import { loadUserSettings } from "@/lib/user-settings"
 import { AdminPanel } from "@/components/admin-panel"
 import { CityIntroSplash } from "@/components/city-intro-splash"
 import { IntercityDriverManageModal } from "@/components/intercity-driver-manage-modal"
@@ -101,7 +102,11 @@ export default function PoputiApp() {
     if (stored === "driver" && !access) {
       window.localStorage.setItem(ROLE_KEY, "passenger")
       setIsDriverState(false)
+      return
     }
+    // BUGFIX: восстанавливаем флаг водителя при перезагрузке страницы,
+    // если в localStorage сохранён режим "driver" и оплата подтверждена
+    setIsDriverState(stored === "driver" && access)
   }, [driverAccessRev, storageReady])
 
   useEffect(() => {
@@ -241,11 +246,21 @@ export default function PoputiApp() {
           photo_200: user.photo_200,
         })
         const tag = vkIdTagFromNumericId(user.id)
-        const displayName = `${user.first_name} ${user.last_name}`.trim()
+        // Учитываем анонимность при обновлении профиля в БД
+        const privacy = (() => {
+          try {
+            return loadUserSettings().privacy
+          } catch {
+            return { hideAvatar: false, hideVkLink: false }
+          }
+        })()
+        const displayName = privacy.hideAvatar
+          ? (user.first_name?.trim() || "Аноним")
+          : `${user.first_name} ${user.last_name}`.trim()
         void supabase.from("profiles").upsert(
           {
             vk_id: tag,
-            avatar_url: user.photo_200 || null,
+            avatar_url: privacy.hideAvatar ? null : (user.photo_200 || null),
             display_name: displayName || null,
             updated_at: new Date().toISOString(),
           },
@@ -327,11 +342,14 @@ export default function PoputiApp() {
         .is("driver_id", null)
         .select("id")
       if (error || !data?.length) {
+        // BUGFIX: оставляем фильтр по активным статусам, чтобы случайно
+        // не "принять" отменённую/завершённую заявку через legacy fallback
         const second = await supabase
           .from("rides")
           .update({ status: "accepted", partner_vk_id: driverTag, driver_id: driverTag })
           .eq("id", ride.id)
           .eq("type", "City")
+          .in("status", ["searching", "open"])
           .is("driver_id", null)
           .select("id")
         if (second.error || !second.data?.length) return false
@@ -435,12 +453,13 @@ export default function PoputiApp() {
     async (ride: SupabaseRide): Promise<boolean> => {
       if (!vkUser) return false
       const driverTag = vkIdTagFromNumericId(vkUser.id)
+      // BUGFIX: разрешаем старт как из "accepted", так и из "arrived"
       const { data, error } = await supabase
         .from("rides")
         .update({ status: "in_transit" })
         .eq("id", ride.id)
         .eq("driver_id", driverTag)
-        .eq("status", "accepted")
+        .in("status", ["accepted", "arrived"])
         .select("id")
       if (error || !data?.length) return false
       await fetchRides()
@@ -579,7 +598,7 @@ export default function PoputiApp() {
 
   if (activeScreen === "admin") {
     return (
-      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5">
+      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gradient-to-b from-[#F4F7FB] via-[#F6F8FC] to-[#EEF2F8] shadow-2xl ring-1 ring-black/5">
         <AdminPanel
           variant="embedded"
           initialAdminCity={selectedCity}
@@ -713,7 +732,7 @@ export default function PoputiApp() {
             )}
           </div>
 
-          <nav className="safe-area-bottom flex items-stretch justify-around border-t border-gray-100 bg-white px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+          <nav className="safe-area-bottom relative flex items-stretch justify-around px-3 pb-2 pt-2 poputi-glass border-t-0 [border-top-left-radius:1.75rem] [border-top-right-radius:1.75rem]">
             <NavButton
               icon={<Map className="h-6 w-6" />}
               label="Карта"
