@@ -11,6 +11,8 @@ import { AdminPanel } from "@/components/admin-panel"
 import { CityIntroSplash } from "@/components/city-intro-splash"
 import { IntercityDriverManageModal } from "@/components/intercity-driver-manage-modal"
 import { IntercitySeatBookModal } from "@/components/intercity-seat-book-modal"
+import { ReviewRideDialog } from "@/components/review-ride-dialog"
+import { buildReviewChatMessage } from "@/lib/review-actions"
 import { isAdminVkUser } from "@/lib/admin-config"
 import {
   appendThreadMessage,
@@ -43,6 +45,8 @@ import {
   getAvatarLabel,
   threadRowToChatData,
   vkIdTagFromNumericId,
+  resolveReviewTargetVk,
+  targetDisplayLabelForReview,
 } from "./helpers"
 import { NavButton } from "./nav-button"
 import { MapScreen } from "./map-screen"
@@ -80,6 +84,8 @@ export default function PoputiApp() {
   const [intercitySeatBookRide, setIntercitySeatBookRide] = useState<SupabaseRide | null>(null)
   const [ridesError, setRidesError] = useState<string | null>(null)
   const [vkMsgsAllowed, setVkMsgsAllowed] = useState(false)
+  const [reviewRide, setReviewRide] = useState<SupabaseRide | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const showAdminEntry = useMemo(() => isAdminVkUser(vkUser?.id), [vkUser?.id])
 
   useEffect(() => {
@@ -230,6 +236,42 @@ export default function PoputiApp() {
   useEffect(() => {
     if (!isVkReady || !introCityDone || !vkUser) return
     void loadChats()
+  }, [isVkReady, introCityDone, vkUser, loadChats])
+
+  // Realtime: обновляем список чатов при новых сообщениях / изменениях тредов
+  useEffect(() => {
+    if (!isVkReady || !introCityDone || !vkUser) return
+    const myTag = vkIdTagFromNumericId(vkUser.id)
+
+    // Подписка на chat_threads — когда last_message обновляется
+    const threadChannel = supabase
+      .channel("chat_threads_rt")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_threads" },
+        (payload) => {
+          const row = payload.new as { vk_lower?: string; vk_higher?: string }
+          // Обновляем только если тред касается нас
+          if (row.vk_lower === myTag || row.vk_higher === myTag) {
+            void loadChats()
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_threads" },
+        (payload) => {
+          const row = payload.new as { vk_lower?: string; vk_higher?: string }
+          if (row.vk_lower === myTag || row.vk_higher === myTag) {
+            void loadChats()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(threadChannel)
+    }
   }, [isVkReady, introCityDone, vkUser, loadChats])
 
   useEffect(() => {
@@ -443,6 +485,16 @@ export default function PoputiApp() {
         .eq("vk_id", myTag)
         .select("id")
       if (error || !data?.length) return false
+      // Уведомляем водителя об отмене
+      const driverVk = (ride.driver_id || ride.partner_vk_id || "").replace(/^id/i, "")
+      if (driverVk && /^\d+$/.test(driverVk)) {
+        void supabase.functions.invoke("notify-vk", {
+          body: {
+            vk_user_id: driverVk,
+            message: "Пассажир отменил поездку.",
+          },
+        })
+      }
       await fetchRides()
       return true
     },
@@ -462,6 +514,16 @@ export default function PoputiApp() {
         .in("status", ["accepted", "arrived"])
         .select("id")
       if (error || !data?.length) return false
+      // Уведомление пассажиру о начале поездки
+      const passengerVk = (ride.vk_id || "").replace(/^id/i, "")
+      if (passengerVk && /^\d+$/.test(passengerVk)) {
+        void supabase.functions.invoke("notify-vk", {
+          body: {
+            vk_user_id: passengerVk,
+            message: "Поездка началась! Хорошей дороги.",
+          },
+        })
+      }
       await fetchRides()
       return true
     },
@@ -529,6 +591,22 @@ export default function PoputiApp() {
         })
       }
       await fetchRides()
+
+      // Уведомление пассажиру о завершении
+      const passengerVk = (ride.vk_id || "").replace(/^id/i, "")
+      if (passengerVk) {
+        void supabase.functions.invoke("notify-vk", {
+          body: {
+            vk_user_id: passengerVk,
+            message: "Поездка завершена! Зайдите в приложение Попути, чтобы оценить водителя.",
+          },
+        })
+      }
+
+      // Показываем диалог оценки
+      setReviewRide(ride)
+      setReviewOpen(true)
+
       return true
     },
     [vkUser, fetchRides]
@@ -635,6 +713,28 @@ export default function PoputiApp() {
           {publicProfile && (
             <PublicProfileModal profile={publicProfile} onClose={() => setPublicProfile(null)} />
           )}
+          {reviewRide && vkUser && (() => {
+            const myTag = vkIdTagFromNumericId(vkUser.id)
+            const targetVk = resolveReviewTargetVk(reviewRide, myTag)
+            if (!targetVk) return null
+            return (
+              <ReviewRideDialog
+                open={reviewOpen}
+                onOpenChange={(v) => {
+                  setReviewOpen(v)
+                  if (!v) setReviewRide(null)
+                }}
+                rideId={reviewRide.id}
+                reviewerVkId={myTag}
+                targetVkId={targetVk}
+                targetDisplayName={targetDisplayLabelForReview(reviewRide, myTag)}
+                onSuccess={(msg) => {
+                  void appendReviewChatMessage(targetVk, targetDisplayLabelForReview(reviewRide, myTag), msg)
+                  toast.success("Оценка отправлена!")
+                }}
+              />
+            )
+          })()}
           {intercityManageRide && vkUser && (
             <IntercityDriverManageModal
               ride={intercityManageRide}

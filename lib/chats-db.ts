@@ -129,7 +129,43 @@ export async function appendThreadMessage(
     .eq("id", threadId)
 
   if (uErr) console.error("appendThreadMessage update thread", uErr)
+
+  // VK-уведомление получателю о новом сообщении
+  void notifyThreadPeer(supabase, threadId, senderVkId.trim(), trimmed)
+
   return !uErr
+}
+
+/** Отправляем VK-уведомление второму участнику чата */
+async function notifyThreadPeer(
+  supabase: SupabaseClient,
+  threadId: string,
+  senderTag: string,
+  messagePreview: string
+): Promise<void> {
+  try {
+    const { data: thread } = await supabase
+      .from("chat_threads")
+      .select("vk_lower, vk_higher, peer_labels")
+      .eq("id", threadId)
+      .maybeSingle()
+    if (!thread) return
+    const peerTag = thread.vk_lower === senderTag ? thread.vk_higher : thread.vk_lower
+    if (!peerTag) return
+    const peerVkNumeric = peerTag.replace(/^id/i, "")
+    if (!peerVkNumeric || !/^\d+$/.test(peerVkNumeric)) return
+    const senderName =
+      (thread.peer_labels as Record<string, string> | null)?.[senderTag] || "Попутчик"
+    const preview = messagePreview.length > 80 ? messagePreview.slice(0, 77) + "…" : messagePreview
+    void supabase.functions.invoke("notify-vk", {
+      body: {
+        vk_user_id: peerVkNumeric,
+        message: `${senderName}: ${preview}`,
+      },
+    })
+  } catch (e) {
+    console.warn("notifyThreadPeer failed", e)
+  }
 }
 
 export async function deleteChatThread(supabase: SupabaseClient, threadId: string): Promise<boolean> {

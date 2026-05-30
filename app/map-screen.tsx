@@ -279,7 +279,8 @@ function CityMapView({
       )
       if (st === "searching") return true
       if (st === "accepted" || st === "arrived" || st === "in_transit") return isOwner || isDriver
-      if (st === "completed" || st === "cancelled") return isOwner || isDriver
+      // BUGFIX: завершённые/отменённые заявки убираем с карты
+      if (st === "completed" || st === "cancelled") return false
       return true
     },
     [viewerTag]
