@@ -598,7 +598,7 @@ export default function PoputiApp() {
 
   if (activeScreen === "admin") {
     return (
-      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gradient-to-b from-[#F4F7FB] via-[#F6F8FC] to-[#EEF2F8] shadow-2xl ring-1 ring-black/5">
+      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-[#F4F7FB] via-[#F6F8FC] to-[#EEF2F8] shadow-2xl ring-1 ring-black/5">
         <AdminPanel
           variant="embedded"
           initialAdminCity={selectedCity}
@@ -614,12 +614,12 @@ export default function PoputiApp() {
 
   if (!storageReady) {
     return (
-      <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5" />
+      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5" />
     )
   }
 
   return (
-    <div className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-gray-100 shadow-2xl ring-1 ring-black/5">
+    <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-[#F4F7FB] via-[#F6F8FC] to-[#EEF2F8] shadow-2xl ring-1 ring-black/5">
       {!introCityDone ? (
         <CityIntroSplash
           isVkReady={isVkReady}

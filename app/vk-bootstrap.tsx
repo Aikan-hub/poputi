@@ -65,9 +65,68 @@ async function startVkInit(): Promise<boolean> {
   return window.__VK_INIT_PROMISE__
 }
 
+/**
+ * iOS VK WebView: запрещаем bounce scroll на document, если скроллить некуда.
+ * Внутренние scrollable-контейнеры (app-scrollbar) работают штатно.
+ */
+function patchIosBounceScroll() {
+  if (typeof document === "undefined") return
+
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      // Разрешаем скролл внутри элементов с overflow: auto/scroll
+      let el = e.target as HTMLElement | null
+      while (el && el !== document.body) {
+        const style = window.getComputedStyle(el)
+        const oy = style.overflowY
+        if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight) {
+          return // внутренний скроллер — не трогаем
+        }
+        el = el.parentElement
+      }
+      // Если дошли до body — блокируем (это bounce)
+      e.preventDefault()
+    },
+    { passive: false }
+  )
+}
+
+/** Блокируем pinch-zoom (iOS игнорирует user-scalable=no с iOS 10+) */
+function patchPinchZoom() {
+  if (typeof document === "undefined") return
+
+  document.addEventListener(
+    "gesturestart",
+    (e) => e.preventDefault(),
+    { passive: false }
+  )
+  document.addEventListener(
+    "gesturechange",
+    (e) => e.preventDefault(),
+    { passive: false }
+  )
+  document.addEventListener(
+    "gestureend",
+    (e) => e.preventDefault(),
+    { passive: false }
+  )
+
+  // Блокируем multi-touch zoom
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length > 1) e.preventDefault()
+    },
+    { passive: false }
+  )
+}
+
 export function AppBootstrap() {
   useLayoutEffect(() => {
     void startVkInit()
+    patchIosBounceScroll()
+    patchPinchZoom()
     loadErudaDevTools()
   }, [])
 

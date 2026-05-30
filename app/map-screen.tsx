@@ -242,13 +242,16 @@ function CityMapView({
   onRetryRides?: () => void
 }) {
   const cityCoords = APP_CITY_COORDS[city]
-  const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 50), [cityCoords])
+  const cityBounds = useMemo(() => cityBoundsKm(cityCoords, 22), [cityCoords])
   const mapOptions = useMemo(
     () => ({
       suppressMapOpenBlock: true,
       suppressObsoleteBrowserNotifier: true,
+      restrictMapArea: cityBounds,
+      minZoom: 11,
+      maxZoom: 18,
     }),
-    []
+    [cityBounds]
   )
   const [isYandexReady, setIsYandexReady] = useState(false)
   const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
@@ -401,6 +404,7 @@ function CityMapView({
   )
   const isPassenger = userRole !== "Driver"
   const showPassengerTeaser = isPassenger && !showAddRequest && !selectedDriver && !myActiveDriverRide
+  const showDriverRadar = !isPassenger && !showAddRequest && !selectedDriver && !myActiveDriverRide
 
   useEffect(() => {
     yandexReadyRef.current = false
@@ -493,24 +497,12 @@ function CityMapView({
         </div>
       )}
 
-      {showPassengerTeaser && (
+      {(showPassengerTeaser || showDriverRadar) && (
         <RideRadarPanel
           radar={rideRadar}
           onCreateRequest={() => setShowAddRequest(true)}
           onSelectRide={(driver) => setSelectedDriver(driver)}
         />
-      )}
-
-      {userRole === "Driver" && !myActiveDriverRide && (
-        <button
-          type="button"
-          onClick={() => setShowAddRequest(true)}
-          className="poputi-focus-ring poputi-grad-primary absolute bottom-6 right-4 z-10 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-[0_18px_36px_-10px_rgba(39,135,245,0.65)] ring-1 ring-white/40 transition-all hover:scale-[1.04] motion-reduce:active:scale-100 active:scale-95"
-          aria-label="Новая заявка"
-        >
-          <Plus className="h-7 w-7" aria-hidden />
-          <span className="pointer-events-none absolute inset-0 rounded-2xl poputi-pulse-ring" aria-hidden />
-        </button>
       )}
 
       {activeDriverData && (

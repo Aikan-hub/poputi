@@ -121,14 +121,29 @@
   * {
     @apply border-border outline-ring/50;
   }
-  html,
-  body {
-    height: 100dvh;
+  html {
+    height: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
     -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+    /* iOS VK Mini App: запрет bounce/scroll на body */
+    position: fixed;
+    inset: 0;
+    /* Запрет масштабирования */
+    touch-action: pan-x pan-y;
+    -ms-touch-action: pan-x pan-y;
     @apply bg-background text-foreground;
   }
 
