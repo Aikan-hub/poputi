@@ -73,9 +73,26 @@ export function ChatsScreen({
 
       <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-3 space-y-2">
         {chatsLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white py-16 text-gray-400">
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#2787F5] border-t-transparent" />
-            <span className="text-sm">Загрузка…</span>
+          <div className="space-y-2" aria-label="Загрузка чатов" role="status">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                style={{ opacity: 1 - i * 0.25 }}
+              >
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                  <span className="poputi-shimmer absolute inset-0" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="relative h-3 w-2/5 overflow-hidden rounded-full bg-gray-100">
+                    <span className="poputi-shimmer absolute inset-0" />
+                  </div>
+                  <div className="relative h-2.5 w-4/5 overflow-hidden rounded-full bg-gray-50">
+                    <span className="poputi-shimmer absolute inset-0" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {!chatsLoading && !vkUser && (
@@ -101,51 +118,63 @@ export function ChatsScreen({
         {!chatsLoading &&
           vkUser &&
           chats.map((chat) => (
-            <button
+            <div
               key={chat.id}
-              type="button"
-              onClick={() => setSelectedChat(chat)}
-              className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors active:bg-gray-50"
+              className="poputi-card poputi-press relative flex items-center rounded-2xl"
             >
-              <div
-                className="relative shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenProfile(chat)
-                }}
+              <button
+                type="button"
+                onClick={() => setSelectedChat(chat)}
+                className="poputi-focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-3 pr-1 text-left"
               >
-                {chat.avatarUrl ? (
-                  <img
-                    src={chat.avatarUrl}
-                    alt=""
-                    width={44}
-                    height={44}
-                    className="h-11 w-11 rounded-full object-cover bg-gray-100"
-                  />
-                ) : (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#2787F5] text-sm font-bold text-white">
-                    {chat.avatar}
+                <div className="relative shrink-0">
+                  {chat.avatarUrl ? (
+                    <img
+                      src={chat.avatarUrl}
+                      alt=""
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full object-cover bg-gray-100 ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(15,23,42,0.3)]"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full poputi-grad-primary text-sm font-bold text-white ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(39,135,245,0.5)]">
+                      {chat.avatar}
+                    </div>
+                  )}
+                  {chat.unread > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2787F5] px-0.5 text-[9px] font-bold text-white ring-2 ring-white">
+                      {chat.unread}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="truncate text-sm font-bold tracking-tight text-gray-900">{chat.name}</h3>
+                    <span className="shrink-0 text-[11px] font-medium text-gray-400">{chat.time}</span>
                   </div>
-                )}
-                {chat.unread > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-0.5 text-[9px] font-bold text-white ring-2 ring-white">
-                    {chat.unread}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="truncate text-sm font-semibold text-gray-900">{chat.name}</h3>
-                  <span className="shrink-0 text-[11px] text-gray-400">{chat.time}</span>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    {chat.rating > 0 && (
+                      <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-amber-500">
+                        <Star size={10} fill="currentColor" aria-hidden /> {chat.rating.toFixed(1)}
+                      </span>
+                    )}
+                    <p className="truncate text-[13px] text-gray-500">{chat.lastMessage || "Нет сообщений"}</p>
+                  </div>
                 </div>
-                <p className="mt-0.5 truncate text-[13px] text-gray-500">{chat.lastMessage || "Нет сообщений"}</p>
-              </div>
-              {chat.rating > 0 && (
-                <div className="flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-yellow-500">
-                  <Star size={10} fill="currentColor" /> {chat.rating.toFixed(1)}
-                </div>
-              )}
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Удалить чат с «${chat.name}»? Сообщения будут удалены.`)) {
+                    void onDeleteChat(chat.threadId)
+                  }
+                }}
+                className="poputi-focus-ring mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 active:bg-red-50 active:text-red-500"
+                aria-label={`Удалить чат с ${chat.name}`}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           ))}
       </div>
     </div>
@@ -394,8 +423,8 @@ function ChatView({
                   className={cn(
                     "max-w-[78%] rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed",
                     msg.isMe
-                      ? "rounded-br-md bg-[#2787F5] text-white"
-                      : "rounded-bl-md bg-white text-gray-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)]",
+                      ? "poputi-grad-primary rounded-br-md text-white shadow-[0_6px_14px_-6px_rgba(39,135,245,0.45)]"
+                      : "rounded-bl-md border border-white/60 bg-white/85 text-gray-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] backdrop-blur-sm",
                     msg.pending && "opacity-60"
                   )}
                 >
@@ -419,8 +448,7 @@ function ChatView({
             onKeyDown={(e) => {
               if (e.key === "Enter") void handleSend()
             }}
-            disabled={sending}
-            className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:bg-white focus:ring-1 focus:ring-[#2787F5]/30 disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:bg-white focus:ring-1 focus:ring-[#2787F5]/30"
           />
           <button
             type="button"
@@ -459,8 +487,13 @@ function RideOfferCard({
   const isCounter = (offer.priceDelta ?? 0) > 0
   const isPrimary = !isCounter
 
+  const hasRoute = Boolean(offer.from?.trim() || offer.to?.trim())
+
   return (
-    <div className="w-full max-w-full rounded-2xl bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
+    <div className="poputi-card w-full max-w-full overflow-hidden rounded-2xl p-3.5">
+      <div className="mb-1 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#EAF2FF] to-[#DCE9FF] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#2787F5] ring-1 ring-[#2787F5]/15">
+        Отклик водителя
+      </div>
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2.5">
           {offer.driverAvatarUrl ? (
@@ -469,17 +502,17 @@ function RideOfferCard({
               alt=""
               width={40}
               height={40}
-              className="h-10 w-10 rounded-full bg-gray-100 object-cover"
+              className="h-10 w-10 rounded-full bg-gray-100 object-cover ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(15,23,42,0.3)]"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-base font-bold text-gray-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full poputi-grad-primary text-base font-bold text-white ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(39,135,245,0.5)]">
               {offer.driverName.slice(0, 1).toUpperCase()}
             </div>
           )}
           <div>
             <div className="flex items-center gap-1.5">
-              <h4 className="text-sm font-semibold text-gray-900">{offer.driverName}</h4>
-              <div className="flex items-center gap-0.5 text-[11px] font-semibold text-yellow-500">
+              <h4 className="text-sm font-bold tracking-tight text-gray-900">{offer.driverName}</h4>
+              <div className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-500">
                 <Star size={10} fill="currentColor" /> {(offer.driverRating ?? 5).toFixed(1)}
               </div>
             </div>
@@ -489,36 +522,54 @@ function RideOfferCard({
           </div>
         </div>
         <div className="text-right">
-          <p className={cn("text-lg font-bold", isCounter ? "text-orange-500" : "text-gray-900")}>{offer.price} ₽</p>
+          <p className={cn("text-lg font-black tracking-tight", isCounter ? "text-orange-500" : "text-gray-900")}>
+            {offer.price} ₽
+          </p>
+          {isCounter && (
+            <p className="text-[10px] font-semibold text-orange-400">+{offer.priceDelta} ₽ к цене</p>
+          )}
         </div>
       </div>
+      {hasRoute && (
+        <div className="mb-3 flex min-w-0 items-center gap-1.5 rounded-xl bg-gray-50 px-2.5 py-2 text-xs font-semibold text-gray-900 ring-1 ring-gray-100">
+          <span className="truncate">{offer.from?.trim() || "—"}</span>
+          <span className="shrink-0 text-gray-400">→</span>
+          <span className="truncate">{offer.to?.trim() || "—"}</span>
+        </div>
+      )}
       {decided ? (
         <div className={cn(
-          "rounded-xl py-2 text-center text-xs font-semibold",
-          offer.status === "accepted" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
+          "rounded-xl py-2 text-center text-xs font-bold",
+          offer.status === "accepted"
+            ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70"
+            : "bg-gray-100 text-gray-500"
         )}>
-          {offer.status === "accepted" ? "Отклик принят" : "Отклик отклонён"}
+          {offer.status === "accepted" ? "✓ Отклик принят" : "Отклик отклонён"}
         </div>
       ) : isPassenger ? (
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onAccept}
-            className="poputi-focus-ring flex-1 rounded-xl bg-[#2787F5] py-2.5 text-xs font-bold text-white active:scale-95"
+            className="poputi-btn-motion poputi-focus-ring poputi-grad-primary flex-1 rounded-xl py-2.5 text-xs font-bold text-white shadow-[0_8px_18px_-6px_rgba(39,135,245,0.55)] ring-1 ring-white/30 active:scale-95"
           >
-            Принять
+            Принять за {offer.price} ₽
           </button>
           <button
             type="button"
             onClick={onReject}
-            className="poputi-focus-ring rounded-xl bg-gray-100 px-5 py-2.5 text-xs font-semibold text-gray-600 active:scale-95"
+            className="poputi-btn-motion poputi-focus-ring rounded-xl bg-gray-100 px-5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 active:scale-95"
           >
             Нет
           </button>
         </div>
       ) : (
-        <div className="rounded-xl bg-gray-50 py-2 text-center text-xs text-gray-500">
-          Ожидаем ответа
+        <div className="flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 py-2 text-center text-xs font-medium text-gray-500">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2787F5] opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2787F5]" />
+          </span>
+          Ожидаем ответа пассажира
         </div>
       )}
     </div>

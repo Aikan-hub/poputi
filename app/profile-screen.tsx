@@ -37,17 +37,9 @@ import {
   type UserSettings,
 } from "@/lib/user-settings"
 import { cn } from "@/lib/utils"
-import {
-  hasDriverAccess,
-  createDriverPaymentIntent,
-  checkDriverInvoicePaid,
-  grantDriverAccessLocally,
-  openPaymentUrl,
-  setPendingDriverInvoice,
-  DRIVER_ACCESS_PRICE_LABEL,
-} from "@/lib/driver-payment"
+import { hasDriverAccess, grantDriverAccessLocally } from "@/lib/driver-payment"
 import { YokassaPaymentModal } from "@/components/yokassa-payment-modal"
-import { useDriverAccess, grantLocalAccess as grantYokassaLocalAccess } from "@/hooks/use-driver-access"
+import { grantLocalAccess as grantYokassaLocalAccess } from "@/hooks/use-driver-access"
 import { supabase } from "@/lib/supabase-client"
 import { type AppCity } from "@/lib/cities"
 import {
@@ -80,12 +72,6 @@ export function ProfileScreen({
   onDriverPaymentVerified?: () => void
 }) {
   const [rideHistoryOpen, setRideHistoryOpen] = useState(false)
-  const [driverPayOpen, setDriverPayOpen] = useState(false)
-  const [driverPayUrl, setDriverPayUrl] = useState("")
-  const [driverInvoiceId, setDriverInvoiceId] = useState<string | null>(null)
-  const [driverPayError, setDriverPayError] = useState<string | null>(null)
-  const [driverChecking, setDriverChecking] = useState(false)
-  const [driverCheckHint, setDriverCheckHint] = useState<string | null>(null)
   const [roleConfirmTarget, setRoleConfirmTarget] = useState<"driver" | "passenger" | null>(null)
   const [roleSwitching, setRoleSwitching] = useState(false)
   const [yokassaPayOpen, setYokassaPayOpen] = useState(false)
@@ -174,8 +160,31 @@ export function ProfileScreen({
 
   const confirmSwitchToDriver = useCallback(async () => {
     setRoleConfirmTarget(null)
+    // Доступ уже оплачен локально — включаем роль без повторной оплаты
+    if (hasDriverAccess()) {
+      setIsDriver(true)
+      onDriverPaymentVerified?.()
+      return
+    }
+    // Проверяем активный оплаченный доступ на сервере (ЮKassa, 24 ч)
+    if (vkUser) {
+      try {
+        const tag = vkIdTagFromNumericId(vkUser.id)
+        const res = await fetch(`/api/yokassa/check-access?vkTag=${encodeURIComponent(tag)}`)
+        const data = (await res.json()) as { hasAccess?: boolean }
+        if (data.hasAccess) {
+          grantDriverAccessLocally()
+          grantYokassaLocalAccess()
+          setIsDriver(true)
+          onDriverPaymentVerified?.()
+          return
+        }
+      } catch {
+        // сеть недоступна — предложим оплату, модалка покажет свою ошибку
+      }
+    }
     setYokassaPayOpen(true)
-  }, [])
+  }, [vkUser, setIsDriver, onDriverPaymentVerified])
 
   const confirmSwitchToPassenger = useCallback(() => {
     setIsDriver(false)
@@ -782,100 +791,6 @@ export function ProfileScreen({
         />
       ) : null}
 
-      {driverPayOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 safe-area-bottom">
-          <button
-            type="button"
-            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm motion-reduce:backdrop-blur-none"
-            aria-label="Закрыть окно оплаты"
-            onClick={() => {
-              setDriverPayOpen(false)
-              setDriverChecking(false)
-            }}
-          />
-          <div
-            className="relative w-full max-w-sm overscroll-contain rounded-[2rem] bg-white p-6 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="driver-pay-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="driver-pay-title" className="text-lg font-bold text-gray-900">
-              Доступ водителя — {DRIVER_ACCESS_PRICE_LABEL}
-            </h2>
-            {driverPayError ? (
-              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
-                {driverPayError}
-              </p>
-            ) : null}
-            {!driverPayError && (
-              <p className="mt-2 text-sm text-gray-500">
-                Оплатите на странице CloudTips. После оплаты нажмите «Проверить оплату» — мы сверим данные с
-                сервером CloudTips.
-              </p>
-            )}
-            {driverCheckHint && (
-              <p className="mt-2 rounded-xl bg-yellow-50 px-3 py-2 text-sm text-gray-900">{driverCheckHint}</p>
-            )}
-            {driverPayUrl ? (
-              <button
-                type="button"
-                onClick={() => void openPaymentUrl(driverPayUrl)}
-                className="poputi-btn-motion poputi-focus-ring mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2787F5] py-3 text-sm font-semibold text-white shadow-lg shadow-[#2787F5]/30 hover:bg-[#1F6AD8] active:scale-[0.98]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Открыть оплату ещё раз
-              </button>
-            ) : null}
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={driverChecking || !driverInvoiceId}
-                onClick={async () => {
-                  if (!driverInvoiceId) return
-                  setDriverChecking(true)
-                  setDriverCheckHint(null)
-                  const st = await checkDriverInvoicePaid(driverInvoiceId)
-                  setDriverChecking(false)
-                  if (st === "paid") {
-                    grantDriverAccessLocally()
-                    onDriverPaymentVerified?.()
-                    setIsDriver(true)
-                    setDriverPayOpen(false)
-                    setDriverInvoiceId(null)
-                    setDriverPayUrl("")
-                    return
-                  }
-                  if (st === "pending") {
-                    setDriverCheckHint(
-                      "Оплата пока не подтверждена. Завершите платёж на CloudTips и нажмите «Проверить оплату» снова через несколько секунд."
-                    )
-                    return
-                  }
-                  if (st === "missing") {
-                    setDriverCheckHint("Счёт не найден. Закройте окно и снова выберите «Водитель», чтобы создать новую оплату.")
-                    return
-                  }
-                  setDriverCheckHint("Не удалось проверить оплату. Проверьте интернет и попробуйте снова.")
-                }}
-                className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white hover:bg-gray-800 active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400"
-              >
-                {driverChecking ? "Проверка…" : "Проверить оплату"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDriverPayOpen(false)
-                  setDriverChecking(false)
-                }}
-                className="poputi-btn-motion poputi-focus-ring w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-200 active:scale-95"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react"
 import bridge from "@vkontakte/vk-bridge"
-import { toast } from "sonner"
+import { toast, Toaster } from "sonner"
 import { Map, MessageCircle, Shield, User } from "lucide-react"
 import { assertNotBanned } from "@/lib/banned-users"
 import { loadIntroCityDone, loadStoredCity, storeSelectedCity } from "@/lib/app-storage"
@@ -27,6 +27,7 @@ import {
 import { acceptRideOffer, createRideOffer, rejectRideOffer } from "@/lib/ride-flow"
 import { rpcBookIntercitySeat } from "@/lib/intercity-booking"
 import { purgeExpiredRides } from "@/lib/rides"
+import { normalizeRideStatus } from "@/lib/ride-status"
 import { supabase } from "@/lib/supabase-client"
 import { DEFAULT_APP_CITY, type AppCity } from "@/lib/cities"
 import type {
@@ -232,6 +233,25 @@ export default function PoputiApp() {
       .subscribe()
     return () => { void supabase.removeChannel(channel) }
   }, [selectedDriver?.supabaseId, intercityManageRide?.id, intercitySeatBookRide?.id, fetchRides, isVkReady, introCityDone])
+
+  // Держим открытый bottom sheet в актуальном состоянии: realtime-обновления rides
+  // должны менять статус/цену прямо в открытой карточке заявки
+  useEffect(() => {
+    setSelectedDriver((current) => {
+      if (!current?.supabaseId) return current
+      const fresh = rides.find((r) => r.id === current.supabaseId)
+      if (!fresh) return current
+      const st = normalizeRideStatus(fresh.status)
+      if (st === current.rideStatus && fresh === current.activeRide) return current
+      return {
+        ...current,
+        rideStatus: st,
+        activeRide: fresh,
+        price: fresh.price || 0,
+        driverId: fresh.driver_id ?? null,
+      }
+    })
+  }, [rides])
 
   useEffect(() => {
     if (!isVkReady || !introCityDone || !vkUser) return
@@ -698,6 +718,17 @@ export default function PoputiApp() {
 
   return (
     <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-[#F4F7FB] via-[#F6F8FC] to-[#EEF2F8] shadow-2xl ring-1 ring-black/5">
+      <Toaster
+        position="top-center"
+        richColors
+        closeButton={false}
+        toastOptions={{
+          style: {
+            borderRadius: "1rem",
+            fontWeight: 600,
+          },
+        }}
+      />
       {!introCityDone ? (
         <CityIntroSplash
           isVkReady={isVkReady}

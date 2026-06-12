@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Clock, CreditCard, CheckCircle, Loader2, ShieldCheck, X } from "lucide-react"
 import { poputi } from "@/components/poputi/ui"
 import { grantLocalAccess } from "@/hooks/use-driver-access"
+import { openPaymentUrl } from "@/lib/driver-payment"
 
 type Props = {
   open: boolean
@@ -55,7 +56,8 @@ export function YokassaPaymentModal({ open, onClose, vkTag, onSuccess }: Props) 
       setConfirmationUrl(data.confirmationUrl)
       setState("waiting")
 
-      window.open(data.confirmationUrl, "_blank", "noopener,noreferrer")
+      // VK WebView блокирует window.open — открываем через VK Bridge с фолбэками
+      void openPaymentUrl(data.confirmationUrl)
     } catch {
       setState("error")
       setError("Сеть недоступна")
@@ -172,14 +174,13 @@ export function YokassaPaymentModal({ open, onClose, vkTag, onSuccess }: Props) 
                 </button>
               ) : state === "waiting" ? (
                 <div className="space-y-3">
-                  <a
-                    href={confirmationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => void openPaymentUrl(confirmationUrl)}
                     className={`block w-full rounded-xl py-3.5 text-center font-semibold text-white transition-colors ${poputi.brandBg} active:opacity-80`}
                   >
                     Перейти к оплате
-                  </a>
+                  </button>
                   <button
                     onClick={handleCheckPaid}
                     className="w-full rounded-xl border border-gray-300 py-3 font-medium text-gray-700 transition-colors active:bg-gray-100"

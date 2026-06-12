@@ -264,7 +264,7 @@ function CityMapView({
   const [mapClock, setMapClock] = useState(0)
   const [yokassaPayOpen, setYokassaPayOpen] = useState(false)
   const viewerTag = vkUser ? vkIdTagFromNumericId(vkUser.id) : null
-  const { hasAccess: driverHasAccess } = useDriverAccess(
+  const { hasAccess: driverHasAccess, refresh: refreshDriverAccess } = useDriverAccess(
     userRole === "Driver" ? viewerTag : null
   )
 
@@ -323,7 +323,7 @@ function CityMapView({
         name: ride.name || "Пользователь",
         avatar:
           (ride.avatar && ride.avatar.startsWith("http") && ride.avatar) ||
-          (vkUser ? `${vkUser.first_name} ${vkUser.last_name}` : getAvatarLabel(ride.name || "Пользователь", ride.avatar)),
+          getAvatarLabel(ride.name || "Пользователь", ride.avatar),
         coords: [lat, lng],
         price: ride.price || 0,
         timer,
@@ -362,7 +362,7 @@ function CityMapView({
     }[]
 
     return { markers, counters }
-  }, [rides, city, vkUser, shouldDisplayRide, mapClock])
+  }, [rides, city, shouldDisplayRide, mapClock])
 
   const myActiveDriverRide = useMemo(() => {
     if (!viewerTag || userRole !== "Driver") return null
@@ -612,14 +612,17 @@ function CityMapView({
         </button>
       )}
 
-      <YokassaPaymentModal
-        open={yokassaPayOpen}
-        onClose={() => setYokassaPayOpen(false)}
-        vkTag={viewerTag ?? "id000000"}
-        onSuccess={() => {
-          setYokassaPayOpen(false)
-        }}
-      />
+      {viewerTag && (
+        <YokassaPaymentModal
+          open={yokassaPayOpen}
+          onClose={() => setYokassaPayOpen(false)}
+          vkTag={viewerTag}
+          onSuccess={() => {
+            setYokassaPayOpen(false)
+            refreshDriverAccess()
+          }}
+        />
+      )}
     </div>
   )
 }

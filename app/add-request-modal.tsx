@@ -306,8 +306,11 @@ export function AddRequestModal({
   if (variant === "cityDriver") {
     return (
       <BottomSheet onClose={onClose} className="max-h-[86vh] overflow-y-auto pb-12">
-        <h2 className="mb-1 text-xl font-bold text-gray-900">По городу — водитель</h2>
-        <p className="mb-4 rounded-xl bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-500">
+        <header className="mb-3">
+          <h2 className="text-lg font-bold tracking-tight text-gray-900">На линию — водитель</h2>
+          <p className="mt-0.5 text-xs text-gray-500">По городу · пассажиры увидят вас на карте</p>
+        </header>
+        <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-500 ring-1 ring-gray-100">
           Точка на карте — центр экрана при открытии формы. Передвиньте карту и откройте снова, чтобы сменить пин.
         </p>
         <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
@@ -418,10 +421,10 @@ export function AddRequestModal({
 
   return (
     <BottomSheet onClose={onClose} className="max-h-[86vh] overflow-y-auto pb-12">
-      <h2 className="mb-1 text-xl font-bold text-gray-900">Межгород — {city}</h2>
-      <p className="mb-4 rounded-xl bg-[#F0F6FF] px-3 py-2 text-sm text-[#2787F5]">
-        Заявка попадёт во вкладку «Межгород» для вашего города отправления.
-      </p>
+      <header className="mb-3">
+        <h2 className="text-lg font-bold tracking-tight text-gray-900">Межгород — {city}</h2>
+        <p className="mt-0.5 text-xs text-gray-500">Маршрут попадёт во вкладку «Межгород» вашего города</p>
+      </header>
       <RouteTemplatePicker routes={settings.routes} onSelect={applyRouteTemplate} />
       <div className="space-y-3">
         <input

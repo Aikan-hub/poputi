@@ -62,31 +62,36 @@ export function DriverActiveRideBar({
 
   return (
     <>
-      <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between rounded-2xl bg-white p-4 shadow-lg">
+      <div className="poputi-glass absolute left-4 right-4 top-4 z-20 flex items-center justify-between rounded-2xl p-3.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
             {passengerAvatarUrl ? (
-              <img src={passengerAvatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+              <img
+                src={passengerAvatarUrl}
+                alt=""
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-white shadow-[0_6px_14px_-6px_rgba(15,23,42,0.35)]"
+              />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0F6FF] text-lg font-bold text-[#2787F5]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full poputi-grad-primary text-lg font-bold text-white ring-2 ring-white shadow-[0_6px_14px_-6px_rgba(39,135,245,0.55)]">
                 {passengerName.slice(0, 1)}
               </div>
             )}
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#2787F5]" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#4BB34B]" />
           </div>
           <div className="min-w-0">
-            <h4 className="truncate font-bold text-gray-900">{passengerName}</h4>
+            <h4 className="truncate font-bold tracking-tight text-gray-900">{passengerName}</h4>
             <p className="text-xs font-medium text-gray-500">
-              Рейтинг {(passengerRating ?? 5).toFixed(1)}
+              ★ {(passengerRating ?? 5).toFixed(1)} · активная поездка
             </p>
           </div>
         </div>
         <button
           type="button"
           onClick={onChat}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5] transition-colors hover:bg-[#F0F6FF]"
+          className="poputi-btn-motion poputi-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5] hover:bg-[#E3EFFF] active:scale-95"
+          aria-label="Чат с пассажиром"
         >
-          <MessageSquare className="h-[18px] w-[18px]" />
+          <MessageSquare className="h-[18px] w-[18px]" aria-hidden />
         </button>
       </div>
 
