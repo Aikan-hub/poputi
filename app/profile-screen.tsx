@@ -742,6 +742,18 @@ export function ProfileScreen({
             <span className="font-medium text-gray-900">История заявок</span>
             <ChevronLeft className="ml-auto h-5 w-5 shrink-0 rotate-180 text-gray-400" />
           </button>
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3.5 text-left transition-colors active:bg-gray-50"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F6FF] text-[#2787F5]">
+              <Shield className="h-5 w-5" />
+            </span>
+            <span className="font-medium text-gray-900">Условия использования</span>
+            <ChevronLeft className="ml-auto h-5 w-5 shrink-0 rotate-180 text-gray-400" />
+          </a>
           {showAdminEntry && (
             <button
               type="button"
