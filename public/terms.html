@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poputi — Условия оказания услуг</title>
+<style>
+  :root {
+    --ink: #1a1d23;
+    --ink-soft: #4a4f58;
+    --paper: #fbfaf8;
+    --line: #e4e1da;
+    --accent: #2d6a4f;
+    --accent-soft: #e8f3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .mark {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 16px; flex-shrink: 0;
+  }
+  .brand { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  h1 {
+    font-size: clamp(28px, 5vw, 38px); font-weight: 800; letter-spacing: -0.02em;
+    margin-top: 28px; margin-bottom: 6px;
+  }
+  .subtitle { color: var(--ink-soft); font-size: 15px; margin-bottom: 40px; }
+  section { margin-bottom: 36px; padding-bottom: 36px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--accent); margin-bottom: 10px;
+  }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 14px; }
+  p { color: var(--ink); font-size: 15.5px; margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+  .price-box {
+    display: inline-flex; align-items: baseline; gap: 8px;
+    background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; margin-top: 8px;
+  }
+  .price-box .num { font-size: 26px; font-weight: 800; color: var(--accent); }
+  .price-box .unit { font-size: 14px; color: var(--ink-soft); }
+  ul { list-style: none; margin-top: 8px; }
+  ul li { position: relative; padding-left: 20px; margin-bottom: 10px; font-size: 15.5px; }
+  ul li::before { content: "—"; position: absolute; left: 0; color: var(--accent); }
+  .note {
+    background: var(--accent-soft); border-radius: 10px; padding: 16px 18px;
+    font-size: 14.5px; color: var(--ink-soft); margin-top: 14px;
+  }
+  .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 4px; }
+  @media (max-width: 480px) { .grid-info { grid-template-columns: 1fr; } }
+  .info-item .label {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft); margin-bottom: 4px;
+  }
+  .info-item .value { font-size: 15.5px; font-weight: 600; }
+  a { color: var(--accent); }
+  footer {
+    margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="mark">P</div>
+    <div class="brand">Poputi</div>
+  </header>
+  <h1>Условия оказания услуг</h1>
+  <p class="subtitle">Информация об услуге, оплате, возврате и контактах — в соответствии с требованиями платёжной системы</p>
+  <section>
+    <div class="eyebrow">Описание услуги</div>
+    <h2>Что предоставляет сервис</h2>
+    <p>Poputi — информационная площадка (биржа заявок) для поиска попутчиков при совместных поездках между населёнными пунктами и по городу (райдшеринг). Пользователи самостоятельно размещают и находят объявления о поездках через приложение.</p>
+    <p>Сервис предоставляет водителям платный доступ к информационному ресурсу — бирже заявок пассажиров, желающих найти попутчика для поездки. Доступ открывается на 24 часа с момента оплаты и даёт возможность просматривать и принимать заявки пассажиров в выбранных направлениях (внутригородские и межгородские поездки).</p>
+    <p>Сервис не оказывает услуги перевозки и не является стороной договора между водителем и пассажиром — договорённость о поездке заключается напрямую между пользователями. Для пассажиров использование сервиса бесплатно.</p>
+    <div class="price-box">
+      <span class="num">300 ₽</span>
+      <span class="unit">за 24 часа доступа к заявкам</span>
+    </div>
+  </section>
+  <section>
+    <div class="eyebrow">Оформление</div>
+    <h2>Заказ и сроки исполнения</h2>
+    <p>Доступ к сервису предоставляется автоматически сразу после поступления оплаты. Активация занимает не более 5 минут. Доступ действует 24 часа с момента активации.</p>
+  </section>
+  <section>
+    <div class="eyebrow">Оплата</div>
+    <h2>Условия и способы оплаты</h2>
+    <p>Оплата принимается онлайн через платёжную систему Robokassa: банковской картой, через Систему быстрых платежей (СБП). Оплата производится через приложение перед получением доступа к заявкам.</p>
+  </section>
+  <section>
+    <div class="eyebrow">Предоставление услуги</div>
+    <h2>Порядок оказания услуги</h2>
+    <p>Услуга является цифровой и предоставляется онлайн. После оплаты пользователь автоматически получает доступ к разделу заявок в приложении Poputi. Физическая доставка не требуется.</p>
+  </section>
+  <section>
+    <div class="eyebrow">Важно</div>
+    <h2>Возврат и отказ от покупки</h2>
+    <ul>
+      <li>Пользователь вправе отказаться от услуги и запросить возврат средств до момента активации доступа к разделу заявок, написав на <a href="mailto:poputishumiha@gmail.com">poputishumiha@gmail.com</a> с указанием даты и суммы платежа.</li>
+      <li>После активации доступа (открытия раздела заявок) услуга считается оказанной, возврат не производится, так как доступ к информации был фактически предоставлен.</li>
+      <li>Заявка на возврат рассматривается в течение 3 рабочих дней с момента обращения.</li>
+      <li>При положительном решении средства возвращаются на тот же способ оплаты, которым была произведена оплата, в течение 5–10 рабочих дней.</li>
+      <li>Возврат производится в полном объёме без вычета комиссии платёжного сервиса.</li>
+    </ul>
+  </section>
+  <section>
+    <div class="eyebrow">Реквизиты</div>
+    <h2>Юридическая и контактная информация</h2>
+    <div class="grid-info">
+      <div class="info-item">
+        <div class="label">Самозанятый</div>
+        <div class="value">Никитин Кирилл Анатольевич</div>
+      </div>
+      <div class="info-item">
+        <div class="label">ИНН</div>
+        <div class="value">452402504406</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Email для связи</div>
+        <div class="value"><a href="mailto:poputishumiha@gmail.com">poputishumiha@gmail.com</a></div>
+      </div>
+      <div class="info-item">
+        <div class="label">Приложение</div>
+        <div class="value"><a href="https://vk.com/app54583468" target="_blank" rel="noopener">vk.com/app54583468</a></div>
+      </div>
+    </div>
+    <div class="note">Обработка персональных данных пользователей осуществляется в соответствии с Политикой конфиденциальности сервиса.</div>
+  </section>
+  <footer>Poputi · Шумиха и область · poputishumiha@gmail.com</footer>
+</div>
+</body>
+</html>
